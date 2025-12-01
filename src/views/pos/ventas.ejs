@@ -73,16 +73,7 @@
       </thead>
       <tbody class="divide-y divide-gray-100">
         ` + (ventas.length > 0 ? ventas.map(function(v) {
-          var itemsJson = JSON.stringify(v.items.map(function(i) {
-            return {
-              nombre: i.servicio ? i.servicio.nombre : (i.producto ? i.producto.nombre : 'Item'),
-              tipo: i.tipo,
-              cantidad: i.cantidad,
-              precioUnit: i.precioUnit,
-              subtotal: i.subtotal
-            };
-          })).replace(/"/g, '&quot;');
-          return '<tr class="hover:bg-gray-50">' +
+          return '<tr class="hover:bg-gray-50 cursor-pointer venta-row" data-folio="' + v.folio + '" data-fecha="' + moment(v.createdAt).format('DD/MM/YYYY HH:mm') + '" data-cliente="' + (v.paciente ? v.paciente.nombre + ' ' + v.paciente.apellido : 'Cliente general') + '" data-metodo="' + v.metodoPago + '" data-subtotal="' + v.subtotal + '" data-descuento="' + v.descuento + '" data-total="' + v.total + '" data-items="' + encodeURIComponent(JSON.stringify(v.items.map(function(i) { return { nombre: i.servicio ? i.servicio.nombre : (i.producto ? i.producto.nombre : 'Item'), tipo: i.tipo, cantidad: i.cantidad, precioUnit: i.precioUnit, subtotal: i.subtotal }; }))) + '">' +
             '<td class="px-6 py-4 font-mono text-sm text-primary-600 font-bold">' + v.folio + '</td>' +
             '<td class="px-6 py-4 text-gray-600">' + moment(v.createdAt).format('DD/MM/YYYY HH:mm') + '</td>' +
             '<td class="px-6 py-4 text-gray-800">' + (v.paciente ? v.paciente.nombre + ' ' + v.paciente.apellido : '<span class="text-gray-400">Cliente general</span>') + '</td>' +
@@ -92,7 +83,7 @@
               ' capitalize">' + v.metodoPago + '</span></td>' +
             '<td class="px-6 py-4 text-right font-bold text-secondary-600">' + formatCurrency(v.total) + '</td>' +
             '<td class="px-6 py-4 text-center">' +
-              '<button onclick="verDetalle(&quot;' + v.folio + '&quot;, &quot;' + moment(v.createdAt).format('DD/MM/YYYY HH:mm') + '&quot;, &quot;' + (v.paciente ? v.paciente.nombre + ' ' + v.paciente.apellido : 'Cliente general') + '&quot;, &quot;' + v.metodoPago + '&quot;, ' + v.subtotal + ', ' + v.descuento + ', ' + v.total + ', &quot;' + itemsJson + '&quot;)" class="bg-primary-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-primary-600 transition">' +
+              '<button class="btn-ver bg-primary-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-primary-600 transition">' +
                 '<i class="fas fa-eye mr-1"></i> Ver' +
               '</button>' +
             '</td>' +
@@ -168,16 +159,27 @@
 </div>
 
 <script>
-function verDetalle(folio, fecha, cliente, metodo, subtotal, descuento, total, itemsJson) {
-  document.getElementById('detFolio').textContent = folio;
-  document.getElementById('detFecha').textContent = fecha;
-  document.getElementById('detCliente').textContent = cliente;
-  document.getElementById('detMetodo').textContent = metodo;
-  document.getElementById('detSubtotal').textContent = '$' + subtotal.toFixed(2);
-  document.getElementById('detDescuento').textContent = '-$' + descuento.toFixed(2);
-  document.getElementById('detTotal').textContent = '$' + total.toFixed(2);
+// Event delegation para botones Ver
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.btn-ver');
+  if (btn) {
+    var row = btn.closest('.venta-row');
+    if (row) {
+      verDetalle(row);
+    }
+  }
+});
+
+function verDetalle(row) {
+  document.getElementById('detFolio').textContent = row.dataset.folio;
+  document.getElementById('detFecha').textContent = row.dataset.fecha;
+  document.getElementById('detCliente').textContent = row.dataset.cliente;
+  document.getElementById('detMetodo').textContent = row.dataset.metodo;
+  document.getElementById('detSubtotal').textContent = '$' + parseFloat(row.dataset.subtotal).toFixed(2);
+  document.getElementById('detDescuento').textContent = '-$' + parseFloat(row.dataset.descuento).toFixed(2);
+  document.getElementById('detTotal').textContent = '$' + parseFloat(row.dataset.total).toFixed(2);
   
-  var items = JSON.parse(itemsJson.replace(/&quot;/g, '"'));
+  var items = JSON.parse(decodeURIComponent(row.dataset.items));
   var itemsHtml = items.map(function(item) {
     return '<div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg">' +
       '<div>' +
@@ -203,9 +205,13 @@ function filtrarPorFecha() {
   }
 }
 
-// Cerrar modal con ESC
+// Cerrar modal con ESC o clic fuera
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') cerrarDetalle();
+});
+
+document.getElementById('modalDetalle').addEventListener('click', function(e) {
+  if (e.target === this) cerrarDetalle();
 });
 </script>
 `}) %>
