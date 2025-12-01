@@ -16,8 +16,8 @@
 
     <!-- Servicios -->
     <div id="listaServicios" class="grid md:grid-cols-2 gap-4">
-      ${servicios.map(s => 
-        '<div class="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition cursor-pointer" onclick="agregarItem(\\'servicio\\', ' + s.id + ', \\'' + s.nombre.replace(/'/g, "\\'") + '\\', ' + s.precio + ')">' +
+      ` + servicios.map(function(s) {
+        return '<div class="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition cursor-pointer" data-tipo="servicio" data-id="' + s.id + '" data-nombre="' + s.nombre + '" data-precio="' + s.precio + '">' +
           '<div class="flex justify-between items-start">' +
             '<div>' +
               '<h4 class="font-medium text-gray-800">' + s.nombre + '</h4>' +
@@ -25,14 +25,14 @@
             '</div>' +
             '<p class="text-lg font-bold text-primary-600">' + formatCurrency(s.precio) + '</p>' +
           '</div>' +
-        '</div>'
-      ).join('')}
+        '</div>';
+      }).join('') + `
     </div>
 
     <!-- Productos -->
     <div id="listaProductos" class="grid md:grid-cols-2 gap-4 hidden">
-      ${productos.map(p => 
-        '<div class="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition cursor-pointer ' + (p.stock <= 0 ? 'opacity-50' : '') + '" onclick="' + (p.stock > 0 ? 'agregarItem(\\'producto\\', ' + p.id + ', \\'' + p.nombre.replace(/'/g, "\\'") + '\\', ' + p.precio + ')' : '') + '">' +
+      ` + productos.map(function(p) {
+        return '<div class="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition cursor-pointer ' + (p.stock <= 0 ? 'opacity-50' : '') + '" data-tipo="producto" data-id="' + p.id + '" data-nombre="' + p.nombre + '" data-precio="' + p.precio + '" data-stock="' + p.stock + '">' +
           '<div class="flex justify-between items-start">' +
             '<div>' +
               '<h4 class="font-medium text-gray-800">' + p.nombre + '</h4>' +
@@ -40,8 +40,8 @@
             '</div>' +
             '<p class="text-lg font-bold text-secondary-600">' + formatCurrency(p.precio) + '</p>' +
           '</div>' +
-        '</div>'
-      ).join('')}
+        '</div>';
+      }).join('') + `
     </div>
   </div>
 
@@ -56,7 +56,7 @@
         <label class="block text-sm font-medium text-gray-700 mb-2">Paciente (opcional)</label>
         <select id="pacienteVenta" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
           <option value="">Cliente general</option>
-          ${pacientes.map(p => '<option value="' + p.id + '">' + p.nombre + ' ' + p.apellido + '</option>').join('')}
+          ` + pacientes.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + ' ' + p.apellido + '</option>'; }).join('') + `
         </select>
       </div>
 
@@ -98,6 +98,21 @@
 <script>
 let carrito = [];
 
+// Event delegation para agregar items
+document.getElementById('listaServicios').addEventListener('click', function(e) {
+  const item = e.target.closest('[data-tipo]');
+  if (item) {
+    agregarItem(item.dataset.tipo, parseInt(item.dataset.id), item.dataset.nombre, parseFloat(item.dataset.precio));
+  }
+});
+
+document.getElementById('listaProductos').addEventListener('click', function(e) {
+  const item = e.target.closest('[data-tipo]');
+  if (item && parseInt(item.dataset.stock) > 0) {
+    agregarItem(item.dataset.tipo, parseInt(item.dataset.id), item.dataset.nombre, parseFloat(item.dataset.precio));
+  }
+});
+
 function mostrarTab(tab) {
   document.getElementById('listaServicios').classList.toggle('hidden', tab !== 'servicios');
   document.getElementById('listaProductos').classList.toggle('hidden', tab !== 'productos');
@@ -135,8 +150,8 @@ function renderCarrito() {
   if (carrito.length === 0) {
     container.innerHTML = '<p class="text-gray-500 text-center py-4">Carrito vacío</p>';
   } else {
-    container.innerHTML = carrito.map((item, i) => 
-      '<div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">' +
+    container.innerHTML = carrito.map(function(item, i) {
+      return '<div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">' +
         '<div class="flex-1">' +
           '<p class="text-sm font-medium text-gray-800">' + item.nombre + '</p>' +
           '<p class="text-xs text-gray-500">$' + item.precio.toFixed(2) + ' x ' + item.cantidad + '</p>' +
@@ -147,14 +162,14 @@ function renderCarrito() {
           '<button onclick="cambiarCantidad(' + i + ', 1)" class="w-6 h-6 bg-gray-200 rounded text-gray-600 hover:bg-gray-300">+</button>' +
           '<button onclick="quitarItem(' + i + ')" class="text-red-500 hover:text-red-700 ml-2"><i class="fas fa-trash"></i></button>' +
         '</div>' +
-      '</div>'
-    ).join('');
+      '</div>';
+    }).join('');
   }
   actualizarTotales();
 }
 
 function actualizarTotales() {
-  const subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+  const subtotal = carrito.reduce(function(sum, item) { return sum + (item.precio * item.cantidad); }, 0);
   const descuento = parseFloat(document.getElementById('descuento').value) || 0;
   const total = subtotal - descuento;
   document.getElementById('subtotal').textContent = '$' + subtotal.toFixed(2);
@@ -167,7 +182,7 @@ function procesarVenta() {
     return;
   }
 
-  const data = {
+  var data = {
     pacienteId: document.getElementById('pacienteVenta').value || null,
     items: carrito,
     descuento: parseFloat(document.getElementById('descuento').value) || 0,
@@ -179,10 +194,10 @@ function procesarVenta() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   })
-  .then(response => response.json())
-  .then(result => {
+  .then(function(response) { return response.json(); })
+  .then(function(result) {
     if (result.success) {
-      alert('Venta completada!\\nFolio: ' + result.venta.folio + '\\nTotal: ' + result.venta.total);
+      alert('Venta completada! Folio: ' + result.venta.folio + ' Total: ' + result.venta.total);
       carrito = [];
       renderCarrito();
       document.getElementById('descuento').value = 0;
@@ -190,8 +205,7 @@ function procesarVenta() {
       alert('Error: ' + result.error);
     }
   })
-  .catch(error => alert('Error al procesar la venta'));
+  .catch(function(error) { alert('Error al procesar la venta'); });
 }
 </script>
 `}) %>
-
