@@ -1,0 +1,31 @@
+<%- include('../layout', { body: `
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-4 text-left text-sm font-medium text-gray-600">Folio</th>
+          <th class="px-6 py-4 text-left text-sm font-medium text-gray-600">Fecha</th>
+          <th class="px-6 py-4 text-left text-sm font-medium text-gray-600">Paciente</th>
+          <th class="px-6 py-4 text-left text-sm font-medium text-gray-600">Items</th>
+          <th class="px-6 py-4 text-left text-sm font-medium text-gray-600">Método</th>
+          <th class="px-6 py-4 text-right text-sm font-medium text-gray-600">Total</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        ${ventas.length > 0 ? ventas.map(v => 
+          '<tr class="hover:bg-gray-50">' +
+            '<td class="px-6 py-4 font-mono text-sm text-primary-600">' + v.folio + '</td>' +
+            '<td class="px-6 py-4 text-gray-600">' + moment(v.createdAt).format('DD/MM/YYYY HH:mm') + '</td>' +
+            '<td class="px-6 py-4 text-gray-800">' + (v.paciente ? v.paciente.nombre + ' ' + v.paciente.apellido : 'Cliente general') + '</td>' +
+            '<td class="px-6 py-4 text-gray-600">' + v.items.length + ' items</td>' +
+            '<td class="px-6 py-4"><span class="px-2 py-1 bg-gray-100 rounded-full text-xs capitalize">' + v.metodoPago + '</span></td>' +
+            '<td class="px-6 py-4 text-right font-bold text-secondary-600">' + formatCurrency(v.total) + '</td>' +
+          '</tr>'
+        ).join('') : '<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">No hay ventas registradas</td></tr>'}
+      </tbody>
+    </table>
+  </div>
+</div>
+`}) %>
+

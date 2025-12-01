@@ -1,0 +1,85 @@
+<%- include('../layout', { body: `
+<div class="grid lg:grid-cols-3 gap-6">
+  <!-- Info Principal -->
+  <div class="lg:col-span-1">
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <div class="text-center mb-6">
+        <div class="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-3xl font-bold mx-auto mb-4">
+          ${paciente.nombre[0]}${paciente.apellido[0]}
+        </div>
+        <h2 class="text-xl font-bold text-gray-800">${paciente.nombre} ${paciente.apellido}</h2>
+        <p class="text-gray-500">${calculateAge(paciente.fechaNacimiento) ? calculateAge(paciente.fechaNacimiento) + ' años' : ''}</p>
+      </div>
+
+      <div class="space-y-4">
+        <div class="flex items-center gap-3 text-gray-600">
+          <i class="fas fa-phone w-5"></i>
+          <span>${paciente.telefono || 'Sin teléfono'}</span>
+        </div>
+        <div class="flex items-center gap-3 text-gray-600">
+          <i class="fas fa-envelope w-5"></i>
+          <span>${paciente.email || 'Sin email'}</span>
+        </div>
+        <div class="flex items-center gap-3 text-gray-600">
+          <i class="fas fa-map-marker-alt w-5"></i>
+          <span>${paciente.direccion || 'Sin dirección'}</span>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-6 border-t">
+        <a href="/pacientes/${paciente.id}/editar" class="block w-full bg-primary-600 text-white text-center py-2 rounded-lg hover:bg-primary-700 transition">
+          <i class="fas fa-edit mr-2"></i> Editar Paciente
+        </a>
+      </div>
+    </div>
+
+    <!-- Antecedentes -->
+    ${paciente.antecedentes ? '<div class="bg-white rounded-xl shadow-sm p-6 mt-6">' +
+      '<h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-notes-medical text-red-500 mr-2"></i>Antecedentes</h3>' +
+      '<div class="space-y-3 text-sm">' +
+        (paciente.antecedentes.alergias ? '<div><span class="font-medium text-gray-700">Alergias:</span><p class="text-gray-600">' + paciente.antecedentes.alergias + '</p></div>' : '') +
+        (paciente.antecedentes.enfermedades ? '<div><span class="font-medium text-gray-700">Enfermedades:</span><p class="text-gray-600">' + paciente.antecedentes.enfermedades + '</p></div>' : '') +
+        (paciente.antecedentes.medicamentos ? '<div><span class="font-medium text-gray-700">Medicamentos:</span><p class="text-gray-600">' + paciente.antecedentes.medicamentos + '</p></div>' : '') +
+      '</div>' +
+    '</div>' : ''}
+  </div>
+
+  <!-- Historial -->
+  <div class="lg:col-span-2 space-y-6">
+    <!-- Citas -->
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-gray-800"><i class="fas fa-calendar-alt text-primary-500 mr-2"></i>Historial de Citas</h3>
+        <a href="/citas/crear?pacienteId=${paciente.id}" class="text-primary-600 hover:text-primary-800 text-sm">
+          <i class="fas fa-plus mr-1"></i> Nueva Cita
+        </a>
+      </div>
+      ${paciente.citas.length > 0 ? '<div class="space-y-3">' + paciente.citas.map(c => 
+        '<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">' +
+          '<div>' +
+            '<p class="font-medium text-gray-800">' + moment(c.fecha).format('DD/MM/YYYY') + ' - ' + c.horaInicio + '</p>' +
+            '<p class="text-sm text-gray-500">Dr. ' + c.doctor.nombre + ' ' + c.doctor.apellido + '</p>' +
+          '</div>' +
+          '<span class="px-2 py-1 rounded-full text-xs ' + (c.estado === 'completada' ? 'bg-green-100 text-green-700' : c.estado === 'cancelada' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700') + '">' + c.estado + '</span>' +
+        '</div>'
+      ).join('') + '</div>' : '<p class="text-gray-500 text-center py-4">Sin citas registradas</p>'}
+    </div>
+
+    <!-- Consultas -->
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-stethoscope text-secondary-500 mr-2"></i>Historial de Consultas</h3>
+      ${paciente.consultas.length > 0 ? '<div class="space-y-3">' + paciente.consultas.map(c => 
+        '<div class="p-3 bg-gray-50 rounded-lg">' +
+          '<div class="flex justify-between items-start mb-2">' +
+            '<p class="font-medium text-gray-800">' + moment(c.fecha).format('DD/MM/YYYY') + '</p>' +
+            '<p class="text-sm text-gray-500">Dr. ' + c.doctor.nombre + '</p>' +
+          '</div>' +
+          (c.diagnostico ? '<p class="text-sm text-gray-600"><strong>Diagnóstico:</strong> ' + c.diagnostico + '</p>' : '') +
+          (c.tratamiento ? '<p class="text-sm text-gray-600"><strong>Tratamiento:</strong> ' + c.tratamiento + '</p>' : '') +
+        '</div>'
+      ).join('') + '</div>' : '<p class="text-gray-500 text-center py-4">Sin consultas registradas</p>'}
+    </div>
+  </div>
+</div>
+`}) %>
+

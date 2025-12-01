@@ -1,0 +1,130 @@
+<%- include('../layout', { body: `
+${stockBajo.length > 0 ? '<div class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-lg mb-6"><i class="fas fa-exclamation-triangle mr-2"></i><strong>Alerta de stock bajo:</strong> ' + stockBajo.map(p => p.nombre + ' (' + p.stock + ')').join(', ') + '</div>' : ''}
+
+<div class="flex justify-end mb-6">
+  <button onclick="abrirModal()" class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700">
+    <i class="fas fa-plus mr-2"></i> Nuevo Producto
+  </button>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-6 py-4 text-left text-sm font-medium text-gray-600">Producto</th>
+        <th class="px-6 py-4 text-left text-sm font-medium text-gray-600">Categoría</th>
+        <th class="px-6 py-4 text-center text-sm font-medium text-gray-600">Stock</th>
+        <th class="px-6 py-4 text-right text-sm font-medium text-gray-600">Precio</th>
+        <th class="px-6 py-4 text-center text-sm font-medium text-gray-600">Estado</th>
+        <th class="px-6 py-4 text-center text-sm font-medium text-gray-600">Acciones</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      ${productos.map(p => 
+        '<tr class="hover:bg-gray-50">' +
+          '<td class="px-6 py-4"><p class="font-medium text-gray-800">' + p.nombre + '</p></td>' +
+          '<td class="px-6 py-4 text-gray-600">' + (p.categoria || '-') + '</td>' +
+          '<td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded-full text-sm ' + (p.stock <= p.stockMinimo ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700') + '">' + p.stock + '</span></td>' +
+          '<td class="px-6 py-4 text-right font-bold text-secondary-600">' + formatCurrency(p.precio) + '</td>' +
+          '<td class="px-6 py-4 text-center">' + (p.activo ? '<span class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">Activo</span>' : '<span class="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs">Inactivo</span>') + '</td>' +
+          '<td class="px-6 py-4 text-center"><button onclick="editarProducto(' + JSON.stringify(p).replace(/"/g, '&quot;') + ')" class="text-primary-600 hover:text-primary-800"><i class="fas fa-edit"></i></button></td>' +
+        '</tr>'
+      ).join('')}
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal -->
+<div id="modalProducto" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+    <h3 class="text-lg font-bold text-gray-800 mb-4" id="modalTitulo">Nuevo Producto</h3>
+    <form id="formProducto" class="space-y-4">
+      <input type="hidden" id="productoId" name="id">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+        <input type="text" id="productoNombre" name="nombre" required class="w-full px-3 py-2 border rounded-lg">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Precio *</label>
+          <input type="number" id="productoPrecio" name="precio" required step="0.01" min="0" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Costo</label>
+          <input type="number" id="productoCosto" name="costo" step="0.01" min="0" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Stock</label>
+          <input type="number" id="productoStock" name="stock" value="0" min="0" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Stock Mínimo</label>
+          <input type="number" id="productoStockMin" name="stockMinimo" value="5" min="0" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+        <input type="text" id="productoCategoria" name="categoria" class="w-full px-3 py-2 border rounded-lg">
+      </div>
+      <div class="flex items-center">
+        <input type="checkbox" id="productoActivo" name="activo" checked class="mr-2">
+        <label for="productoActivo" class="text-sm text-gray-700">Activo</label>
+      </div>
+      <div class="flex gap-4">
+        <button type="button" onclick="cerrarModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">Cancelar</button>
+        <button type="submit" class="flex-1 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function abrirModal() {
+  document.getElementById('modalTitulo').textContent = 'Nuevo Producto';
+  document.getElementById('formProducto').reset();
+  document.getElementById('productoId').value = '';
+  document.getElementById('modalProducto').classList.remove('hidden');
+}
+
+function cerrarModal() {
+  document.getElementById('modalProducto').classList.add('hidden');
+}
+
+function editarProducto(p) {
+  document.getElementById('modalTitulo').textContent = 'Editar Producto';
+  document.getElementById('productoId').value = p.id;
+  document.getElementById('productoNombre').value = p.nombre;
+  document.getElementById('productoPrecio').value = p.precio;
+  document.getElementById('productoCosto').value = p.costo || '';
+  document.getElementById('productoStock').value = p.stock;
+  document.getElementById('productoStockMin').value = p.stockMinimo;
+  document.getElementById('productoCategoria').value = p.categoria || '';
+  document.getElementById('productoActivo').checked = p.activo;
+  document.getElementById('modalProducto').classList.remove('hidden');
+}
+
+document.getElementById('formProducto').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+  const data = Object.fromEntries(formData);
+  data.activo = document.getElementById('productoActivo').checked ? 'true' : 'false';
+  
+  fetch('/pos/productos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  .then(r => r.json())
+  .then(result => {
+    if (result.success) {
+      location.reload();
+    } else {
+      alert('Error al guardar');
+    }
+  });
+});
+</script>
+`}) %>
+

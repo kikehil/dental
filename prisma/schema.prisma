@@ -1,0 +1,225 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  nombre    String
+  rol       String   @default("recepcionista") // admin, doctor, recepcionista
+  activo    Boolean  @default(true)
+  doctorId  Int?     @unique
+  doctor    Doctor?  @relation(fields: [doctorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("usuarios")
+}
+
+model Doctor {
+  id            Int              @id @default(autoincrement())
+  nombre        String
+  apellido      String
+  especialidad  String
+  telefono      String?
+  email         String?          @unique
+  color         String           @default("#3b82f6")
+  activo        Boolean          @default(true)
+  usuario       Usuario?
+  horarios      HorarioDoctor[]
+  citas         Cita[]
+  consultas     Consulta[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@map("doctores")
+}
+
+model HorarioDoctor {
+  id          Int    @id @default(autoincrement())
+  doctorId    Int
+  doctor      Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  diaSemana   Int    // 0=Domingo, 1=Lunes, ..., 6=Sábado
+  horaInicio  String
+  horaFin     String
+  activo      Boolean @default(true)
+
+  @@map("horarios_doctores")
+}
+
+model Paciente {
+  id                  Int                  @id @default(autoincrement())
+  nombre              String
+  apellido            String
+  fechaNacimiento     DateTime?
+  genero              String?
+  telefono            String?
+  email               String?
+  direccion           String?
+  ocupacion           String?
+  contactoEmergencia  String?
+  telefonoEmergencia  String?
+  notas               String?              @db.Text
+  activo              Boolean              @default(true)
+  antecedentes        AntecedenteMedico?
+  citas               Cita[]
+  consultas           Consulta[]
+  archivos            ArchivoPaciente[]
+  ventas              Venta[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@map("pacientes")
+}
+
+model AntecedenteMedico {
+  id                Int      @id @default(autoincrement())
+  pacienteId        Int      @unique
+  paciente          Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  alergias          String?  @db.Text
+  enfermedades      String?  @db.Text
+  medicamentos      String?  @db.Text
+  cirugiasPrevias   String?  @db.Text
+  antecedentesFam   String?  @db.Text
+  notasMedicas      String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("antecedentes_medicos")
+}
+
+model Consultorio {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  ubicacion String?
+  activo    Boolean  @default(true)
+  citas     Cita[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("consultorios")
+}
+
+model Cita {
+  id            Int          @id @default(autoincrement())
+  pacienteId    Int
+  paciente      Paciente     @relation(fields: [pacienteId], references: [id])
+  doctorId      Int
+  doctor        Doctor       @relation(fields: [doctorId], references: [id])
+  consultorioId Int?
+  consultorio   Consultorio? @relation(fields: [consultorioId], references: [id])
+  fecha         DateTime
+  horaInicio    String
+  horaFin       String
+  motivo        String?      @db.Text
+  estado        String       @default("programada") // programada, completada, cancelada, no_asistio
+  notas         String?      @db.Text
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("citas")
+}
+
+model Consulta {
+  id              Int      @id @default(autoincrement())
+  pacienteId      Int
+  paciente        Paciente @relation(fields: [pacienteId], references: [id])
+  doctorId        Int
+  doctor          Doctor   @relation(fields: [doctorId], references: [id])
+  fecha           DateTime @default(now())
+  motivoConsulta  String?  @db.Text
+  diagnostico     String?  @db.Text
+  tratamiento     String?  @db.Text
+  observaciones   String?  @db.Text
+  proximaCita     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("consultas")
+}
+
+model ArchivoPaciente {
+  id          Int      @id @default(autoincrement())
+  pacienteId  Int
+  paciente    Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  nombre      String
+  tipo        String
+  ruta        String
+  descripcion String?
+  createdAt   DateTime @default(now())
+
+  @@map("archivos_pacientes")
+}
+
+model Servicio {
+  id          Int         @id @default(autoincrement())
+  nombre      String
+  descripcion String?     @db.Text
+  precio      Decimal     @db.Decimal(10, 2)
+  duracion    Int         @default(30) // minutos
+  categoria   String?
+  activo      Boolean     @default(true)
+  items       VentaItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("servicios")
+}
+
+model Producto {
+  id          Int         @id @default(autoincrement())
+  nombre      String
+  descripcion String?     @db.Text
+  precio      Decimal     @db.Decimal(10, 2)
+  costo       Decimal?    @db.Decimal(10, 2)
+  stock       Int         @default(0)
+  stockMinimo Int         @default(5)
+  categoria   String?
+  activo      Boolean     @default(true)
+  items       VentaItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("productos")
+}
+
+model Venta {
+  id            Int         @id @default(autoincrement())
+  folio         String      @unique
+  pacienteId    Int?
+  paciente      Paciente?   @relation(fields: [pacienteId], references: [id])
+  subtotal      Decimal     @db.Decimal(10, 2)
+  descuento     Decimal     @default(0) @db.Decimal(10, 2)
+  total         Decimal     @db.Decimal(10, 2)
+  metodoPago    String      @default("efectivo")
+  estado        String      @default("completada")
+  notas         String?     @db.Text
+  items         VentaItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("ventas")
+}
+
+model VentaItem {
+  id          Int       @id @default(autoincrement())
+  ventaId     Int
+  venta       Venta     @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  tipo        String    // servicio o producto
+  servicioId  Int?
+  servicio    Servicio? @relation(fields: [servicioId], references: [id])
+  productoId  Int?
+  producto    Producto? @relation(fields: [productoId], references: [id])
+  cantidad    Int       @default(1)
+  precioUnit  Decimal   @db.Decimal(10, 2)
+  subtotal    Decimal   @db.Decimal(10, 2)
+
+  @@map("venta_items")
+}
+

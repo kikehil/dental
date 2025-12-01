@@ -1,0 +1,29 @@
+<header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800"><%= title %></h1>
+      <p class="text-sm text-gray-500">
+        <i class="fas fa-calendar-day mr-1"></i>
+        <%= moment().format('dddd, D [de] MMMM [de] YYYY') %>
+      </p>
+    </div>
+    
+    <div class="flex items-center gap-4">
+      <!-- Acciones rápidas -->
+      <a href="/citas/crear" class="bg-secondary-500 text-white px-4 py-2 rounded-lg hover:bg-secondary-600 transition flex items-center gap-2">
+        <i class="fas fa-plus"></i>
+        <span class="hidden md:inline">Nueva Cita</span>
+      </a>
+      <a href="/pacientes/crear" class="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 transition flex items-center gap-2">
+        <i class="fas fa-user-plus"></i>
+        <span class="hidden md:inline">Nuevo Paciente</span>
+      </a>
+      
+      <!-- Perfil -->
+      <a href="/perfil" class="text-gray-600 hover:text-gray-800 p-2" title="Mi Perfil">
+        <i class="fas fa-cog text-xl"></i>
+      </a>
+    </div>
+  </div>
+</header>
+

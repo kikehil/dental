@@ -1,0 +1,41 @@
+{
+  "name": "clinica-dental",
+  "version": "1.0.0",
+  "description": "Sistema de gestión para clínica dental multi-doctor",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "build": "npx tailwindcss -i ./src/public/css/input.css -o ./src/public/css/output.css --minify",
+    "watch:css": "npx tailwindcss -i ./src/public/css/input.css -o ./src/public/css/output.css --watch",
+    "prisma:generate": "npx prisma generate",
+    "prisma:migrate": "npx prisma migrate deploy",
+    "prisma:studio": "npx prisma studio",
+    "seed": "node prisma/seed.js",
+    "setup": "npm install && npx prisma generate && npx prisma migrate deploy && node prisma/seed.js && npm run build"
+  },
+  "keywords": ["dental", "clinica", "gestion", "citas", "pos"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "axios": "^1.7.7",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.21.1",
+    "express-session": "^1.18.1",
+    "express-validator": "^7.2.0",
+    "moment-timezone": "^0.5.45",
+    "multer": "^1.4.5-lts.1",
+    "pdfkit": "^0.15.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7",
+    "prisma": "^5.22.0",
+    "tailwindcss": "^3.4.14"
+  }
+}
+

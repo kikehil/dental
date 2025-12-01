@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iniciar Sesión | Clínica Dental</title>
+  <link rel="stylesheet" href="/css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="min-h-screen bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 flex items-center justify-center p-4">
+  <div class="w-full max-w-md">
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-lg mb-4">
+        <i class="fas fa-tooth text-4xl text-primary-600"></i>
+      </div>
+      <h1 class="text-3xl font-bold text-white">Clínica Dental</h1>
+      <p class="text-primary-200">Sistema de Gestión</p>
+    </div>
+
+    <!-- Formulario -->
+    <div class="bg-white rounded-2xl shadow-xl p-8">
+      <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Iniciar Sesión</h2>
+      
+      <% if (error) { %>
+        <div class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
+          <i class="fas fa-exclamation-circle"></i>
+          <span><%= error %></span>
+        </div>
+      <% } %>
+
+      <form action="/login" method="POST" class="space-y-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            <i class="fas fa-envelope mr-1"></i> Correo Electrónico
+          </label>
+          <input 
+            type="email" 
+            name="email" 
+            required 
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition"
+            placeholder="tu@email.com"
+          >
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            <i class="fas fa-lock mr-1"></i> Contraseña
+          </label>
+          <input 
+            type="password" 
+            name="password" 
+            required 
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition"
+            placeholder="••••••••"
+          >
+        </div>
+
+        <button 
+          type="submit" 
+          class="w-full bg-primary-600 text-white py-3 rounded-lg font-medium hover:bg-primary-700 transition flex items-center justify-center gap-2"
+        >
+          <i class="fas fa-sign-in-alt"></i>
+          Ingresar
+        </button>
+      </form>
+    </div>
+
+    <!-- Footer -->
+    <p class="text-center text-primary-200 text-sm mt-8">
+      © 2024 Sistema de Clínica Dental
+    </p>
+  </div>
+</body>
+</html>
+
