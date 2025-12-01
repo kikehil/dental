@@ -105,7 +105,20 @@ const processSale = async (req, res) => {
 // Historial de ventas
 const ventas = async (req, res) => {
   try {
+    const { fecha } = req.query;
+    
+    // Calcular inicio y fin del día
+    const hoy = fecha ? new Date(fecha) : new Date();
+    const inicioDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0, 0, 0);
+    const finDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23, 59, 59);
+
+    // Obtener ventas (todas o filtradas por fecha)
+    const whereClause = fecha ? {
+      createdAt: { gte: inicioDia, lte: finDia }
+    } : {};
+
     const ventasList = await prisma.venta.findMany({
+      where: whereClause,
       include: {
         paciente: true,
         items: {
@@ -116,13 +129,49 @@ const ventas = async (req, res) => {
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      take: 100,
     });
+
+    // Obtener resumen del día de HOY
+    const hoyInicio = new Date();
+    hoyInicio.setHours(0, 0, 0, 0);
+    const hoyFin = new Date();
+    hoyFin.setHours(23, 59, 59, 999);
+
+    const ventasHoy = await prisma.venta.findMany({
+      where: {
+        createdAt: { gte: hoyInicio, lte: hoyFin }
+      },
+      select: {
+        total: true,
+        metodoPago: true,
+      },
+    });
+
+    // Calcular estadísticas
+    const totalHoy = ventasHoy.reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const cantidadHoy = ventasHoy.length;
+    const promedio = cantidadHoy > 0 ? totalHoy / cantidadHoy : 0;
+    
+    // Método más popular
+    const metodos = {};
+    ventasHoy.forEach(v => {
+      metodos[v.metodoPago] = (metodos[v.metodoPago] || 0) + 1;
+    });
+    const metodoPopular = Object.keys(metodos).length > 0 
+      ? Object.keys(metodos).reduce((a, b) => metodos[a] > metodos[b] ? a : b)
+      : 'N/A';
 
     res.render('pos/ventas', {
       title: 'Historial de Ventas',
       ventas: ventasList,
       formatCurrency,
+      resumen: {
+        ventasHoy: cantidadHoy,
+        totalHoy: formatCurrency(totalHoy),
+        promedio: formatCurrency(promedio),
+        metodoPopular: metodoPopular,
+      },
     });
   } catch (error) {
     console.error('Error al cargar ventas:', error);

@@ -1,5 +1,63 @@
 <%- include('../layout', { body: `
+<!-- Resumen del Día -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-500">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-sm">Ventas Hoy</p>
+        <p class="text-2xl font-bold text-gray-800">${resumen.ventasHoy}</p>
+      </div>
+      <div class="bg-green-100 p-3 rounded-lg">
+        <i class="fas fa-shopping-cart text-xl text-green-600"></i>
+      </div>
+    </div>
+  </div>
+  
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-500">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-sm">Total Hoy</p>
+        <p class="text-2xl font-bold text-gray-800">${resumen.totalHoy}</p>
+      </div>
+      <div class="bg-blue-100 p-3 rounded-lg">
+        <i class="fas fa-dollar-sign text-xl text-blue-600"></i>
+      </div>
+    </div>
+  </div>
+  
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-purple-500">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-sm">Promedio</p>
+        <p class="text-2xl font-bold text-gray-800">${resumen.promedio}</p>
+      </div>
+      <div class="bg-purple-100 p-3 rounded-lg">
+        <i class="fas fa-chart-line text-xl text-purple-600"></i>
+      </div>
+    </div>
+  </div>
+  
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-amber-500">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-sm">Método más usado</p>
+        <p class="text-2xl font-bold text-gray-800 capitalize">${resumen.metodoPopular}</p>
+      </div>
+      <div class="bg-amber-100 p-3 rounded-lg">
+        <i class="fas fa-credit-card text-xl text-amber-600"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla de Ventas -->
 <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <div class="p-4 border-b flex justify-between items-center">
+    <h3 class="font-bold text-gray-800"><i class="fas fa-receipt text-primary-500 mr-2"></i>Historial de Ventas</h3>
+    <div class="flex gap-2">
+      <input type="date" id="filtroFecha" class="px-3 py-2 border rounded-lg text-sm" onchange="filtrarPorFecha()">
+    </div>
+  </div>
   <div class="overflow-x-auto">
     <table class="w-full">
       <thead class="bg-gray-50">
@@ -10,22 +68,144 @@
           <th class="px-6 py-4 text-left text-sm font-medium text-gray-600">Items</th>
           <th class="px-6 py-4 text-left text-sm font-medium text-gray-600">Método</th>
           <th class="px-6 py-4 text-right text-sm font-medium text-gray-600">Total</th>
+          <th class="px-6 py-4 text-center text-sm font-medium text-gray-600">Acción</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100">
-        ${ventas.length > 0 ? ventas.map(v => 
-          '<tr class="hover:bg-gray-50">' +
-            '<td class="px-6 py-4 font-mono text-sm text-primary-600">' + v.folio + '</td>' +
+        ` + (ventas.length > 0 ? ventas.map(function(v) {
+          var itemsJson = JSON.stringify(v.items.map(function(i) {
+            return {
+              nombre: i.servicio ? i.servicio.nombre : (i.producto ? i.producto.nombre : 'Item'),
+              tipo: i.tipo,
+              cantidad: i.cantidad,
+              precioUnit: i.precioUnit,
+              subtotal: i.subtotal
+            };
+          })).replace(/"/g, '&quot;');
+          return '<tr class="hover:bg-gray-50">' +
+            '<td class="px-6 py-4 font-mono text-sm text-primary-600 font-bold">' + v.folio + '</td>' +
             '<td class="px-6 py-4 text-gray-600">' + moment(v.createdAt).format('DD/MM/YYYY HH:mm') + '</td>' +
-            '<td class="px-6 py-4 text-gray-800">' + (v.paciente ? v.paciente.nombre + ' ' + v.paciente.apellido : 'Cliente general') + '</td>' +
-            '<td class="px-6 py-4 text-gray-600">' + v.items.length + ' items</td>' +
-            '<td class="px-6 py-4"><span class="px-2 py-1 bg-gray-100 rounded-full text-xs capitalize">' + v.metodoPago + '</span></td>' +
+            '<td class="px-6 py-4 text-gray-800">' + (v.paciente ? v.paciente.nombre + ' ' + v.paciente.apellido : '<span class="text-gray-400">Cliente general</span>') + '</td>' +
+            '<td class="px-6 py-4"><span class="bg-gray-100 px-2 py-1 rounded-full text-xs">' + v.items.length + ' items</span></td>' +
+            '<td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs ' + 
+              (v.metodoPago === 'efectivo' ? 'bg-green-100 text-green-700' : v.metodoPago === 'tarjeta' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700') + 
+              ' capitalize">' + v.metodoPago + '</span></td>' +
             '<td class="px-6 py-4 text-right font-bold text-secondary-600">' + formatCurrency(v.total) + '</td>' +
-          '</tr>'
-        ).join('') : '<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">No hay ventas registradas</td></tr>'}
+            '<td class="px-6 py-4 text-center">' +
+              '<button onclick="verDetalle(&quot;' + v.folio + '&quot;, &quot;' + moment(v.createdAt).format('DD/MM/YYYY HH:mm') + '&quot;, &quot;' + (v.paciente ? v.paciente.nombre + ' ' + v.paciente.apellido : 'Cliente general') + '&quot;, &quot;' + v.metodoPago + '&quot;, ' + v.subtotal + ', ' + v.descuento + ', ' + v.total + ', &quot;' + itemsJson + '&quot;)" class="bg-primary-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-primary-600 transition">' +
+                '<i class="fas fa-eye mr-1"></i> Ver' +
+              '</button>' +
+            '</td>' +
+          '</tr>';
+        }).join('') : '<tr><td colspan="7" class="px-6 py-8 text-center text-gray-500">No hay ventas registradas</td></tr>') + `
       </tbody>
     </table>
   </div>
 </div>
-`}) %>
 
+<!-- Modal Detalle de Venta -->
+<div id="modalDetalle" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">
+    <div class="bg-gradient-to-r from-primary-600 to-primary-700 text-white p-4">
+      <div class="flex justify-between items-center">
+        <h3 class="text-lg font-bold"><i class="fas fa-receipt mr-2"></i>Detalle de Venta</h3>
+        <button onclick="cerrarDetalle()" class="text-white hover:text-gray-200">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+    </div>
+    
+    <div class="p-6">
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <p class="text-xs text-gray-500">Folio</p>
+          <p id="detFolio" class="font-mono font-bold text-primary-600"></p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500">Fecha</p>
+          <p id="detFecha" class="font-medium"></p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500">Cliente</p>
+          <p id="detCliente" class="font-medium"></p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500">Método de Pago</p>
+          <p id="detMetodo" class="font-medium capitalize"></p>
+        </div>
+      </div>
+      
+      <div class="border-t pt-4">
+        <p class="text-sm font-bold text-gray-700 mb-2">Items</p>
+        <div id="detItems" class="space-y-2 max-h-48 overflow-y-auto"></div>
+      </div>
+      
+      <div class="border-t mt-4 pt-4 space-y-2">
+        <div class="flex justify-between text-gray-600">
+          <span>Subtotal:</span>
+          <span id="detSubtotal"></span>
+        </div>
+        <div class="flex justify-between text-gray-600">
+          <span>Descuento:</span>
+          <span id="detDescuento" class="text-red-500"></span>
+        </div>
+        <div class="flex justify-between text-xl font-bold text-gray-800">
+          <span>Total:</span>
+          <span id="detTotal" class="text-secondary-600"></span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-gray-50 px-6 py-4 flex gap-2">
+      <button onclick="window.print()" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition">
+        <i class="fas fa-print mr-2"></i>Imprimir
+      </button>
+      <button onclick="cerrarDetalle()" class="flex-1 bg-primary-500 text-white py-2 rounded-lg hover:bg-primary-600 transition">
+        Cerrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+function verDetalle(folio, fecha, cliente, metodo, subtotal, descuento, total, itemsJson) {
+  document.getElementById('detFolio').textContent = folio;
+  document.getElementById('detFecha').textContent = fecha;
+  document.getElementById('detCliente').textContent = cliente;
+  document.getElementById('detMetodo').textContent = metodo;
+  document.getElementById('detSubtotal').textContent = '$' + subtotal.toFixed(2);
+  document.getElementById('detDescuento').textContent = '-$' + descuento.toFixed(2);
+  document.getElementById('detTotal').textContent = '$' + total.toFixed(2);
+  
+  var items = JSON.parse(itemsJson.replace(/&quot;/g, '"'));
+  var itemsHtml = items.map(function(item) {
+    return '<div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg">' +
+      '<div>' +
+        '<p class="font-medium text-gray-800">' + item.nombre + '</p>' +
+        '<p class="text-xs text-gray-500">' + item.tipo + ' x ' + item.cantidad + '</p>' +
+      '</div>' +
+      '<p class="font-bold text-gray-700">$' + parseFloat(item.subtotal).toFixed(2) + '</p>' +
+    '</div>';
+  }).join('');
+  document.getElementById('detItems').innerHTML = itemsHtml;
+  
+  document.getElementById('modalDetalle').classList.remove('hidden');
+}
+
+function cerrarDetalle() {
+  document.getElementById('modalDetalle').classList.add('hidden');
+}
+
+function filtrarPorFecha() {
+  var fecha = document.getElementById('filtroFecha').value;
+  if (fecha) {
+    window.location.href = '/pos/ventas?fecha=' + fecha;
+  }
+}
+
+// Cerrar modal con ESC
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') cerrarDetalle();
+});
+</script>
+`}) %>
