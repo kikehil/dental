@@ -10,6 +10,9 @@ const routes = require('./routes');
 
 const app = express();
 
+// Trust proxy para Railway/Heroku (HTTPS)
+app.set('trust proxy', 1);
+
 // Configurar zona horaria
 moment.tz.setDefault(config.timezone);
 
@@ -31,9 +34,11 @@ app.use(session({
   secret: config.sessionSecret,
   resave: false,
   saveUninitialized: false,
+  proxy: true,
   cookie: {
     secure: config.nodeEnv === 'production',
     httpOnly: true,
+    sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000, // 24 horas
   },
 }));
