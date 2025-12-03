@@ -151,12 +151,9 @@ const index = async (req, res) => {
       });
     }
     
-    // PRIORIDAD 2: Si necesita corte programado (2pm o 6pm) y hay un corte previo, 
-    // mostrar banner de alerta (NO redirigir automáticamente si no hay saldo inicial)
-    // Solo redirigir si ya hay saldo inicial y necesita el corte programado
-    if (necesita && ultimoCorte && ultimoCorte.hora !== hora && saldoInicialHoy) {
-      return res.redirect(`/pos/corte?hora=${hora}`);
-    }
+    // PRIORIDAD 2: Si necesita corte programado (2pm o 6pm), mostrar banner de alerta
+    // NO redirigir automáticamente - el usuario debe hacer clic en "Realizar Corte"
+    // Esto permite que el usuario pueda trabajar normalmente y hacer el corte cuando quiera
     
     const [servicios, productos, pacientes] = await Promise.all([
       prisma.servicio.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } }),
@@ -628,10 +625,30 @@ const mostrarCorte = async (req, res) => {
   try {
     const { hora } = req.query;
     
+    // Si no viene hora, redirigir al POS
+    if (!hora) {
+      return res.redirect('/pos');
+    }
+    
     // Validar formato de hora (HH:MM) - permitir cualquier hora, no solo las configuradas
     const horaRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
     if (!horaRegex.test(hora)) {
       return res.redirect('/pos');
+    }
+    
+    // Verificar que haya saldo inicial antes de permitir hacer un corte
+    const hoy = moment().tz(config.timezone).startOf('day').toDate();
+    const mañana = moment().tz(config.timezone).endOf('day').toDate();
+    const saldoInicialHoy = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoy, lte: mañana },
+        hora: { equals: null },
+      },
+    });
+    
+    // Si no hay saldo inicial, redirigir al POS para que lo ingrese primero
+    if (!saldoInicialHoy) {
+      return res.redirect('/pos?necesitaSaldoInicial=true');
     }
     
     // Obtener configuración de cortes para verificar si es el segundo corte (fin día)
