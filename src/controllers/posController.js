@@ -654,9 +654,6 @@ const mostrarCorte = async (req, res) => {
     // Obtener configuración de cortes para verificar si es el segundo corte (fin día)
     const configCortes = await getConfiguracionCortes();
     const esFinDia = hora === configCortes.horaCorte2;
-
-    const hoy = moment().tz(config.timezone).startOf('day').toDate();
-    const mañana = moment().tz(config.timezone).endOf('day').toDate();
     
     // Buscar el saldo inicial del día o el último corte
     const saldoInicialDelDia = await prisma.corteCaja.findFirst({
