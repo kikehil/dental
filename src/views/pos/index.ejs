@@ -328,7 +328,8 @@ function guardarSaldoInicial(event) {
     }
   })
   .catch(function(error) {
-    mostrarNotificacion('error', 'Error', 'No se pudo guardar el saldo inicial');
+    console.error('Error al guardar saldo inicial:', error);
+    mostrarNotificacion('error', 'Error', 'Error al guardar saldo inicial. Por favor, verifica tu conexión e intenta nuevamente.');
   });
 }
 

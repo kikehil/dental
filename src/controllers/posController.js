@@ -499,8 +499,10 @@ const guardarSaldoInicial = async (req, res) => {
   try {
     const { saldoInicial } = req.body;
     
-    if (!saldoInicial || parseFloat(saldoInicial) < 0) {
-      return res.status(400).json({ error: 'Saldo inicial inválido' });
+    // Validar que el saldo inicial sea un número válido
+    const saldo = parseFloat(saldoInicial);
+    if (isNaN(saldo) || saldo < 0) {
+      return res.status(400).json({ error: 'Saldo inicial inválido. Debe ser un número mayor o igual a 0' });
     }
 
     // Verificar si ya existe un corte hoy sin saldo inicial (no debería pasar)
@@ -519,12 +521,18 @@ const guardarSaldoInicial = async (req, res) => {
     }
 
     // Crear registro de saldo inicial (sin hora específica)
+    // Proporcionar todos los campos requeridos explícitamente
     await prisma.corteCaja.create({
       data: {
         fecha: new Date(),
         hora: null,
-        saldoInicial: parseFloat(saldoInicial),
-        saldoFinal: parseFloat(saldoInicial),
+        saldoInicial: saldo,
+        saldoFinal: saldo,
+        ventasEfectivo: 0,
+        ventasTarjeta: 0,
+        ventasTransferencia: 0,
+        totalVentas: 0,
+        diferencia: 0,
         usuarioId: req.session.user?.id || null,
       },
     });
@@ -532,7 +540,19 @@ const guardarSaldoInicial = async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error al guardar saldo inicial:', error);
-    res.status(500).json({ error: 'Error al guardar saldo inicial' });
+    // Mostrar mensaje de error más específico
+    let mensajeError = 'Error al guardar saldo inicial';
+    
+    // Mensajes de error más específicos según el tipo de error
+    if (error.code === 'P2002') {
+      mensajeError = 'Ya existe un registro con estos datos';
+    } else if (error.code === 'P2003') {
+      mensajeError = 'Error de referencia en la base de datos';
+    } else if (error.message) {
+      mensajeError = error.message;
+    }
+    
+    res.status(500).json({ error: mensajeError });
   }
 };
 
