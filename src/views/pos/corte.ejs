@@ -6,7 +6,7 @@
         <h2 class="text-2xl font-bold text-gray-800">
           ${esManual ? '<i class="fas fa-cut text-red-500 mr-2"></i>Corte Manual de Caja' : 'Corte de Caja - ' + hora}
         </h2>
-        <p class="text-gray-600">${moment.tz('${config.timezone}').format('DD/MM/YYYY HH:mm')}</p>
+        <p class="text-gray-600">${now().format('DD/MM/YYYY HH:mm')}</p>
         ${esManual ? '<p class="text-sm text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>Corte realizado manualmente</p>' : ''}
       </div>
       <a href="/pos" class="text-gray-500 hover:text-gray-700">
