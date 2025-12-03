@@ -127,14 +127,9 @@ const index = async (req, res) => {
       req.query.necesitaSaldoInicial === 'true' ||
       !saldoInicialHoy;
     
-    // Si necesita corte y hay un corte previo, redirigir a la vista de corte
-    if (necesita && ultimoCorte && ultimoCorte.hora !== hora) {
-      return res.redirect(`/pos/corte?hora=${hora}`);
-    }
-    
-    // Si necesita corte pero no hay corte previo (primer corte del día), mostrar banner de alerta
-    // Si necesita saldo inicial, mostrar modal
-    if (necesitaSaldoInicial && !necesita) {
+    // PRIORIDAD 1: Si necesita saldo inicial, mostrar modal primero (no importa si necesita corte)
+    // El saldo inicial es más importante que el corte - debe ingresarse antes de cualquier corte
+    if (necesitaSaldoInicial) {
       const [servicios, productos, pacientes] = await Promise.all([
         prisma.servicio.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } }),
         prisma.producto.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } }),
@@ -152,6 +147,11 @@ const index = async (req, res) => {
         horaCorte: null,
         ultimoCorte: null,
       });
+    }
+    
+    // PRIORIDAD 2: Si necesita corte y hay un corte previo, redirigir a la vista de corte
+    if (necesita && ultimoCorte && ultimoCorte.hora !== hora) {
+      return res.redirect(`/pos/corte?hora=${hora}`);
     }
     
     const [servicios, productos, pacientes] = await Promise.all([
