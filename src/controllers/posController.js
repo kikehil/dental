@@ -151,8 +151,10 @@ const index = async (req, res) => {
       });
     }
     
-    // PRIORIDAD 2: Si necesita corte y hay un corte previo, redirigir a la vista de corte
-    if (necesita && ultimoCorte && ultimoCorte.hora !== hora) {
+    // PRIORIDAD 2: Si necesita corte programado (2pm o 6pm) y hay un corte previo, 
+    // mostrar banner de alerta (NO redirigir automáticamente si no hay saldo inicial)
+    // Solo redirigir si ya hay saldo inicial y necesita el corte programado
+    if (necesita && ultimoCorte && ultimoCorte.hora !== hora && saldoInicialHoy) {
       return res.redirect(`/pos/corte?hora=${hora}`);
     }
     
@@ -752,7 +754,9 @@ const procesarCorte = async (req, res) => {
     });
 
     if (corteExistente) {
-      return res.status(400).json({ error: 'Ya se realizó el corte a esta hora' });
+      return res.status(400).json({ 
+        error: 'Ya se realizó un corte a las ' + hora + ' hoy. Si necesitas hacer otro corte, usa "Corte Manual" con una hora diferente.' 
+      });
     }
 
     // Buscar el saldo inicial del día o el último corte
