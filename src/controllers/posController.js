@@ -985,8 +985,28 @@ const procesarCorteManual = async (req, res) => {
       return res.status(400).json({ error: 'Hora requerida' });
     }
 
+    // Validar formato de hora (HH:MM)
+    const horaRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!horaRegex.test(hora)) {
+      return res.status(400).json({ error: 'Formato de hora inválido. Use HH:MM (ejemplo: 14:00)' });
+    }
+
     const hoy = moment().tz(config.timezone).startOf('day').toDate();
     const mañana = moment().tz(config.timezone).endOf('day').toDate();
+    
+    // Verificar si ya existe un corte a esta hora exacta HOY
+    const corteExistente = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoy, lte: mañana },
+        hora: hora, // Misma hora exacta
+      },
+    });
+
+    if (corteExistente) {
+      return res.status(400).json({ 
+        error: 'Ya se realizó un corte a las ' + hora + ' hoy. Si necesitas hacer otro corte, usa una hora diferente.' 
+      });
+    }
     
     // Buscar el saldo inicial del día o el último corte
     const saldoInicialDelDia = await prisma.corteCaja.findFirst({
