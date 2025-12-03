@@ -65,7 +65,7 @@ const processLogin = async (req, res) => {
       const saldoInicialHoy = await prisma.corteCaja.findFirst({
         where: {
           fecha: { gte: hoy, lte: mañana },
-          hora: { is: null }, // Saldo inicial no tiene hora
+          hora: { equals: null }, // Saldo inicial no tiene hora
         },
       });
 

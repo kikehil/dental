@@ -104,7 +104,7 @@ const index = async (req, res) => {
     const saldoInicialHoy = await prisma.corteCaja.findFirst({
       where: {
         fecha: { gte: hoy, lte: mañana },
-        hora: { is: null },
+        hora: { equals: null },
       },
     });
     
@@ -556,7 +556,7 @@ const guardarSaldoInicial = async (req, res) => {
     const corteExistente = await prisma.corteCaja.findFirst({
       where: {
         fecha: { gte: hoy, lte: mañana },
-        hora: { is: null }, // Saldo inicial no tiene hora específica
+        hora: { equals: null }, // Saldo inicial no tiene hora específica
       },
     });
 
@@ -619,7 +619,7 @@ const mostrarCorte = async (req, res) => {
     const saldoInicialDelDia = await prisma.corteCaja.findFirst({
       where: {
         fecha: { gte: hoy, lte: mañana },
-        hora: { is: null },
+        hora: { equals: null },
       },
     });
     
@@ -730,7 +730,7 @@ const procesarCorte = async (req, res) => {
     const saldoInicialDelDia = await prisma.corteCaja.findFirst({
       where: {
         fecha: { gte: hoy, lte: mañana },
-        hora: { is: null },
+        hora: { equals: null },
       },
     });
     
@@ -855,7 +855,7 @@ const mostrarCorteManual = async (req, res) => {
     const saldoInicialDelDia = await prisma.corteCaja.findFirst({
       where: {
         fecha: { gte: hoy, lte: mañana },
-        hora: { is: null },
+        hora: { equals: null },
       },
     });
     
@@ -954,7 +954,7 @@ const procesarCorteManual = async (req, res) => {
     const saldoInicialDelDia = await prisma.corteCaja.findFirst({
       where: {
         fecha: { gte: hoy, lte: mañana },
-        hora: { is: null },
+        hora: { equals: null },
       },
     });
     
