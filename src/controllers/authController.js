@@ -1,5 +1,7 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
+const moment = require('moment-timezone');
+const config = require('../config/config');
 
 // Mostrar página de login
 const showLogin = (req, res) => {
@@ -52,6 +54,26 @@ const processLogin = async (req, res) => {
       rol: usuario.rol,
       doctorId: usuario.doctorId,
     };
+
+    // Verificar si es admin o recepcionista y si necesita saldo inicial
+    // Solo para admin y recepcionista, verificar si es el primer inicio del día
+    if ((usuario.rol === 'admin' || usuario.rol === 'recepcionista')) {
+      const hoy = moment().tz(config.timezone).startOf('day').toDate();
+      const mañana = moment().tz(config.timezone).endOf('day').toDate();
+      
+      // Verificar si hay saldo inicial hoy
+      const saldoInicialHoy = await prisma.corteCaja.findFirst({
+        where: {
+          fecha: { gte: hoy, lte: mañana },
+          hora: { is: null }, // Saldo inicial no tiene hora
+        },
+      });
+
+      // Si no hay saldo inicial hoy, redirigir al POS que mostrará el modal
+      if (!saldoInicialHoy) {
+        return res.redirect('/pos?necesitaSaldoInicial=true');
+      }
+    }
 
     res.redirect('/dashboard');
   } catch (error) {

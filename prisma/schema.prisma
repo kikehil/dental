@@ -244,3 +244,14 @@ model CorteCaja {
   @@map("cortes_caja")
 }
 
+model ConfiguracionCortes {
+  id            Int      @id @default(autoincrement())
+  horaCorte1    String   @default("14:00") // Primer corte del día
+  horaCorte2    String   @default("18:00") // Segundo corte del día
+  activo        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("configuracion_cortes")
+}
+

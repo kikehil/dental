@@ -20,11 +20,38 @@ const getUltimoCorteHoy = async () => {
   return ultimoCorte;
 };
 
+// Función auxiliar para obtener configuración de cortes
+const getConfiguracionCortes = async () => {
+  let configCortes = await prisma.configuracionCortes.findFirst({
+    where: { activo: true },
+  });
+  
+  // Si no existe configuración, crear una con valores por defecto
+  if (!configCortes) {
+    configCortes = await prisma.configuracionCortes.create({
+      data: {
+        horaCorte1: '14:00',
+        horaCorte2: '18:00',
+        activo: true,
+      },
+    });
+  }
+  
+  return configCortes;
+};
+
 // Función auxiliar para verificar si necesita corte de caja
 const necesitaCorte = async () => {
   const ahora = moment().tz(config.timezone);
   const hora = ahora.hour();
   const minutos = ahora.minute();
+  
+  // Obtener configuración de cortes
+  const configCortes = await getConfiguracionCortes();
+  const horaCorte1 = parseInt(configCortes.horaCorte1.split(':')[0]);
+  const minCorte1 = parseInt(configCortes.horaCorte1.split(':')[1]);
+  const horaCorte2 = parseInt(configCortes.horaCorte2.split(':')[0]);
+  const minCorte2 = parseInt(configCortes.horaCorte2.split(':')[1]);
   
   // Obtener último corte de hoy
   const hoy = ahora.startOf('day').toDate();
@@ -36,23 +63,24 @@ const necesitaCorte = async () => {
     orderBy: { createdAt: 'desc' },
   });
   
-  // Verificar si ya pasó la hora del corte y no se ha hecho
-  const hora2pm = 14;
-  const hora6pm = 18;
+  // Verificar si ya pasó la hora del primer corte y no se ha hecho
+  const horaActualMinutos = hora * 60 + minutos;
+  const horaCorte1Minutos = horaCorte1 * 60 + minCorte1;
+  const horaCorte2Minutos = horaCorte2 * 60 + minCorte2;
   
-  // Si es después de las 2pm y antes de las 6pm, y no hay corte de 2pm
-  if (hora >= hora2pm && hora < hora6pm) {
-    const corte2pmExiste = ultimoCorte && ultimoCorte.hora === '14:00';
-    if (!corte2pmExiste && (hora > hora2pm || (hora === hora2pm && minutos >= 0))) {
-      return { necesita: true, hora: '14:00' };
+  // Si es después del primer corte y antes del segundo, y no hay corte del primer horario
+  if (horaActualMinutos >= horaCorte1Minutos && horaActualMinutos < horaCorte2Minutos) {
+    const corte1Existe = ultimoCorte && ultimoCorte.hora === configCortes.horaCorte1;
+    if (!corte1Existe) {
+      return { necesita: true, hora: configCortes.horaCorte1 };
     }
   }
   
-  // Si es después de las 6pm, y no hay corte de 6pm
-  if (hora >= hora6pm) {
-    const corte6pmExiste = ultimoCorte && ultimoCorte.hora === '18:00';
-    if (!corte6pmExiste) {
-      return { necesita: true, hora: '18:00' };
+  // Si es después del segundo corte, y no hay corte del segundo horario
+  if (horaActualMinutos >= horaCorte2Minutos) {
+    const corte2Existe = ultimoCorte && ultimoCorte.hora === configCortes.horaCorte2;
+    if (!corte2Existe) {
+      return { necesita: true, hora: configCortes.horaCorte2 };
     }
   }
   
@@ -64,10 +92,26 @@ const index = async (req, res) => {
   try {
     const ultimoCorte = await getUltimoCorteHoy();
     const { necesita, hora } = await necesitaCorte();
+    const configCortes = await getConfiguracionCortes();
     
     // Verificar si necesita saldo inicial
-    // No hay corte hoy, o el último corte fue a las 6pm (fin del día)
-    const necesitaSaldoInicial = !ultimoCorte || (ultimoCorte && ultimoCorte.hora === '18:00');
+    // 1. Si viene del login con el parámetro
+    // 2. No hay saldo inicial hoy
+    // 3. El último corte fue el segundo corte del día (fin del día)
+    const hoy = moment().tz(config.timezone).startOf('day').toDate();
+    const mañana = moment().tz(config.timezone).endOf('day').toDate();
+    
+    const saldoInicialHoy = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoy, lte: mañana },
+        hora: { is: null },
+      },
+    });
+    
+    const necesitaSaldoInicial = 
+      req.query.necesitaSaldoInicial === 'true' ||
+      !saldoInicialHoy ||
+      (ultimoCorte && ultimoCorte.hora === configCortes.horaCorte2);
     
     // Si necesita corte y hay un corte previo, redirigir a la vista de corte
     if (necesita && ultimoCorte && ultimoCorte.hora !== hora) {
@@ -561,7 +605,10 @@ const mostrarCorte = async (req, res) => {
   try {
     const { hora } = req.query;
     
-    if (hora !== '14:00' && hora !== '18:00') {
+    // Obtener configuración de cortes para validar
+    const configCortes = await getConfiguracionCortes();
+    
+    if (hora !== configCortes.horaCorte1 && hora !== configCortes.horaCorte2) {
       return res.redirect('/pos');
     }
 
@@ -657,7 +704,10 @@ const procesarCorte = async (req, res) => {
   try {
     const { hora, saldoFinal, observaciones } = req.body;
     
-    if (hora !== '14:00' && hora !== '18:00') {
+    // Obtener configuración de cortes para validar
+    const configCortes = await getConfiguracionCortes();
+    
+    if (hora !== configCortes.horaCorte1 && hora !== configCortes.horaCorte2) {
       return res.status(400).json({ error: 'Hora de corte inválida' });
     }
 
@@ -749,7 +799,11 @@ const procesarCorte = async (req, res) => {
       },
     });
 
-    res.json({ success: true });
+    // Si el corte fue el segundo corte del día (fin del día), 
+    // se necesitará saldo inicial al siguiente inicio de sesión
+    const requiereSaldoInicial = hora === configCortes.horaCorte2;
+    
+    res.json({ success: true, requiereSaldoInicial });
   } catch (error) {
     console.error('Error al procesar corte:', error);
     res.status(500).json({ error: 'Error al procesar corte de caja' });

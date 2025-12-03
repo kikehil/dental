@@ -6,6 +6,7 @@ const dashboardRoutes = require('./dashboardRoutes');
 const doctoresRoutes = require('./doctoresRoutes');
 const pacientesRoutes = require('./pacientesRoutes');
 const posRoutes = require('./posRoutes');
+const configuracionRoutes = require('./configuracionRoutes');
 
 // Ruta principal - redirige al punto de venta o login
 router.get('/', (req, res) => {
@@ -22,6 +23,7 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/doctores', doctoresRoutes);
 router.use('/pacientes', pacientesRoutes);
 router.use('/pos', posRoutes);
+router.use('/configuracion', configuracionRoutes);
 
 module.exports = router;
 
