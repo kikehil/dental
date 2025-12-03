@@ -113,9 +113,9 @@ ${estadoCaja ? `
       </thead>
       <tbody class="divide-y divide-gray-100">
         ` + (ventas.length > 0 ? ventas.map(function(v) {
-          return '<tr class="hover:bg-gray-50 cursor-pointer venta-row" data-folio="' + v.folio + '" data-fecha="' + moment(v.createdAt).format('DD/MM/YYYY HH:mm') + '" data-cliente="' + (v.paciente ? v.paciente.nombre + ' ' + v.paciente.apellido : 'Cliente general') + '" data-metodo="' + v.metodoPago + '" data-subtotal="' + v.subtotal + '" data-descuento="' + v.descuento + '" data-total="' + v.total + '" data-items="' + encodeURIComponent(JSON.stringify(v.items.map(function(i) { return { nombre: i.servicio ? i.servicio.nombre : (i.producto ? i.producto.nombre : 'Item'), tipo: i.tipo, cantidad: i.cantidad, precioUnit: i.precioUnit, subtotal: i.subtotal }; }))) + '">' +
+          return '<tr class="hover:bg-gray-50 cursor-pointer venta-row" data-folio="' + v.folio + '" data-fecha="' + moment(v.createdAt).tz('${config.timezone}').format('DD/MM/YYYY HH:mm') + '" data-cliente="' + (v.paciente ? v.paciente.nombre + ' ' + v.paciente.apellido : 'Cliente general') + '" data-metodo="' + v.metodoPago + '" data-subtotal="' + v.subtotal + '" data-descuento="' + v.descuento + '" data-total="' + v.total + '" data-items="' + encodeURIComponent(JSON.stringify(v.items.map(function(i) { return { nombre: i.servicio ? i.servicio.nombre : (i.producto ? i.producto.nombre : 'Item'), tipo: i.tipo, cantidad: i.cantidad, precioUnit: i.precioUnit, subtotal: i.subtotal }; }))) + '">' +
             '<td class="px-6 py-4 font-mono text-sm text-primary-600 font-bold">' + v.folio + '</td>' +
-            '<td class="px-6 py-4 text-gray-600">' + moment(v.createdAt).format('DD/MM/YYYY HH:mm') + '</td>' +
+            '<td class="px-6 py-4 text-gray-600">' + moment(v.createdAt).tz('${config.timezone}').format('DD/MM/YYYY HH:mm') + '</td>' +
             '<td class="px-6 py-4 text-gray-800">' + (v.paciente ? v.paciente.nombre + ' ' + v.paciente.apellido : '<span class="text-gray-400">Cliente general</span>') + '</td>' +
             '<td class="px-6 py-4"><span class="bg-gray-100 px-2 py-1 rounded-full text-xs">' + v.items.length + ' items</span></td>' +
             '<td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs ' + 
