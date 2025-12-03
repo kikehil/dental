@@ -149,13 +149,19 @@ function procesarCorte(event) {
   .then(function(response) { return response.json(); })
   .then(function(result) {
     if (result.success) {
-      mostrarNotificacion('success', 'Corte Realizado', 
-        '<p>El corte de caja se ha registrado correctamente.</p>' +
-        '<p class="mt-2 text-sm text-gray-600">Serás redirigido al punto de venta...</p>'
-      );
-      setTimeout(function() {
-        window.location.href = '/pos';
-      }, 2000);
+      // Si es fin de día, mostrar opción de fin día antes de solicitar saldo inicial
+      if (result.esFinDia) {
+        mostrarOpcionFinDia();
+      } else {
+        // Después de cualquier corte, solicitar saldo inicial inmediatamente
+        mostrarNotificacion('success', 'Corte Realizado', 
+          '<p>El corte de caja se ha registrado correctamente.</p>' +
+          '<p class="mt-2 text-sm text-gray-600">Ahora debes ingresar el saldo inicial para continuar...</p>'
+        );
+        setTimeout(function() {
+          window.location.href = '/pos?necesitaSaldoInicial=true';
+        }, 2000);
+      }
     } else {
       mostrarNotificacion('error', 'Error', result.error || 'No se pudo procesar el corte');
     }
@@ -232,6 +238,61 @@ function mostrarNotificacion(tipo, titulo, mensaje) {
 function cerrarNotificacion() {
   var modal = document.getElementById('notificacionModal');
   if (modal) modal.remove();
+}
+
+function mostrarOpcionFinDia() {
+  var existente = document.getElementById('notificacionModal');
+  if (existente) existente.remove();
+
+  var modal = document.createElement('div');
+  modal.id = 'notificacionModal';
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  modal.style.animation = 'fadeIn 0.2s ease-out';
+  modal.innerHTML = 
+    '<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden" style="animation: slideUp 0.3s ease-out">' +
+      '<div class="p-6 text-center">' +
+        '<div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">' +
+          '<i class="fas fa-check text-3xl text-green-500"></i>' +
+        '</div>' +
+        '<h3 class="text-xl font-bold text-gray-800 mb-2">Corte Realizado</h3>' +
+        '<div class="text-gray-600 mb-4">' +
+          '<p>El corte de caja se ha registrado correctamente.</p>' +
+          '<p class="mt-2 font-medium">¿Deseas cerrar las operaciones del día?</p>' +
+        '</div>' +
+      '</div>' +
+      '<div class="px-6 pb-6 space-y-3">' +
+        '<button onclick="cerrarDia()" class="w-full bg-primary-600 text-white py-3 rounded-xl font-medium transition transform hover:scale-105">' +
+          '<i class="fas fa-door-open mr-2"></i> Cerrar Día' +
+        '</button>' +
+        '<button onclick="continuarOperaciones()" class="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-medium transition">' +
+          'Continuar Operaciones' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(modal);
+}
+
+function cerrarDia() {
+  cerrarNotificacion();
+  mostrarNotificacion('success', 'Día Cerrado', 
+    '<p>Las operaciones del día han sido cerradas.</p>' +
+    '<p class="mt-2 text-sm text-gray-600">Al siguiente inicio de sesión se solicitará el saldo inicial...</p>'
+  );
+  setTimeout(function() {
+    window.location.href = '/pos?necesitaSaldoInicial=true';
+  }, 2000);
+}
+
+function continuarOperaciones() {
+  cerrarNotificacion();
+  // Después de cualquier corte, solicitar saldo inicial
+  mostrarNotificacion('info', 'Saldo Inicial Requerido', 
+    '<p>Debes ingresar el saldo inicial para continuar con las operaciones.</p>'
+  );
+  setTimeout(function() {
+    window.location.href = '/pos?necesitaSaldoInicial=true';
+  }, 2000);
 }
 </script>
 `}) %>

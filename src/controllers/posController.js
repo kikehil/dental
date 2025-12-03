@@ -40,7 +40,9 @@ const getConfiguracionCortes = async () => {
   return configCortes;
 };
 
-// Función auxiliar para verificar si necesita corte de caja
+// Función auxiliar para verificar si necesita corte de caja programado
+// Muestra alerta para los cortes automáticos configurados (2pm y 6pm)
+// Pero permite hacer múltiples cortes sin límite
 const necesitaCorte = async () => {
   const ahora = moment().tz(config.timezone);
   const hora = ahora.hour();
@@ -63,12 +65,12 @@ const necesitaCorte = async () => {
     orderBy: { createdAt: 'desc' },
   });
   
-  // Verificar si ya pasó la hora del primer corte y no se ha hecho
+  // Verificar si ya pasó la hora del primer corte programado y no se ha hecho
   const horaActualMinutos = hora * 60 + minutos;
   const horaCorte1Minutos = horaCorte1 * 60 + minCorte1;
   const horaCorte2Minutos = horaCorte2 * 60 + minCorte2;
   
-  // Si es después del primer corte y antes del segundo, y no hay corte del primer horario
+  // Si es después del primer corte programado y antes del segundo, y no hay corte del primer horario
   if (horaActualMinutos >= horaCorte1Minutos && horaActualMinutos < horaCorte2Minutos) {
     const corte1Existe = ultimoCorte && ultimoCorte.hora === configCortes.horaCorte1;
     if (!corte1Existe) {
@@ -76,7 +78,7 @@ const necesitaCorte = async () => {
     }
   }
   
-  // Si es después del segundo corte, y no hay corte del segundo horario
+  // Si es después del segundo corte programado, y no hay corte del segundo horario
   if (horaActualMinutos >= horaCorte2Minutos) {
     const corte2Existe = ultimoCorte && ultimoCorte.hora === configCortes.horaCorte2;
     if (!corte2Existe) {
@@ -624,12 +626,15 @@ const mostrarCorte = async (req, res) => {
   try {
     const { hora } = req.query;
     
-    // Obtener configuración de cortes para validar
-    const configCortes = await getConfiguracionCortes();
-    
-    if (hora !== configCortes.horaCorte1 && hora !== configCortes.horaCorte2) {
+    // Validar formato de hora (HH:MM) - permitir cualquier hora, no solo las configuradas
+    const horaRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!horaRegex.test(hora)) {
       return res.redirect('/pos');
     }
+    
+    // Obtener configuración de cortes para verificar si es el segundo corte (fin día)
+    const configCortes = await getConfiguracionCortes();
+    const esFinDia = hora === configCortes.horaCorte2;
 
     const hoy = moment().tz(config.timezone).startOf('day').toDate();
     const mañana = moment().tz(config.timezone).endOf('day').toDate();
@@ -700,6 +705,7 @@ const mostrarCorte = async (req, res) => {
       title: `Corte de Caja - ${hora}`,
       hora,
       esManual: false, // Es un corte automático programado
+      esFinDia: esFinDia, // Si es el corte de las 6pm (fin día)
       ultimoCorte: ultimoCorte || saldoInicialDelDia,
       ventas,
       formatCurrency,
@@ -724,12 +730,15 @@ const procesarCorte = async (req, res) => {
   try {
     const { hora, saldoFinal, observaciones } = req.body;
     
-    // Obtener configuración de cortes para validar
-    const configCortes = await getConfiguracionCortes();
-    
-    if (hora !== configCortes.horaCorte1 && hora !== configCortes.horaCorte2) {
-      return res.status(400).json({ error: 'Hora de corte inválida' });
+    // Validar formato de hora (HH:MM)
+    const horaRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!horaRegex.test(hora)) {
+      return res.status(400).json({ error: 'Formato de hora inválido. Use HH:MM (ejemplo: 14:00)' });
     }
+    
+    // Obtener configuración de cortes para verificar si es el segundo corte (fin día)
+    const configCortes = await getConfiguracionCortes();
+    const esFinDia = hora === configCortes.horaCorte2;
 
     const hoy = moment().tz(config.timezone).startOf('day').toDate();
     const mañana = moment().tz(config.timezone).endOf('day').toDate();
@@ -821,11 +830,14 @@ const procesarCorte = async (req, res) => {
       },
     });
 
-    // Después de CUALQUIER corte (automático o manual), 
-    // se necesitará saldo inicial al siguiente inicio de sesión del día siguiente
-    // Esto se maneja automáticamente en la función index del POS
+    // Después de CUALQUIER corte, se debe solicitar saldo inicial inmediatamente
+    // Si es fin de día (corte de las 6pm), también mostrar opción de fin día
     
-    res.json({ success: true, requiereSaldoInicial: true });
+    res.json({ 
+      success: true, 
+      requiereSaldoInicial: true,
+      esFinDia: esFinDia 
+    });
   } catch (error) {
     console.error('Error al procesar corte:', error);
     res.status(500).json({ error: 'Error al procesar corte de caja' });
@@ -1045,9 +1057,12 @@ const procesarCorteManual = async (req, res) => {
       },
     });
 
-    // Después de CUALQUIER corte (automático o manual), 
-    // se necesitará saldo inicial al siguiente inicio de sesión del día siguiente
-    res.json({ success: true, requiereSaldoInicial: true });
+    // Después de CUALQUIER corte, se debe solicitar saldo inicial inmediatamente
+    res.json({ 
+      success: true, 
+      requiereSaldoInicial: true,
+      esFinDia: false // Los cortes manuales no son fin de día
+    });
   } catch (error) {
     console.error('Error al procesar corte manual:', error);
     res.status(500).json({ error: 'Error al procesar corte de caja' });
