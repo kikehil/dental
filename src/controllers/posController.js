@@ -697,6 +697,7 @@ const mostrarCorte = async (req, res) => {
     res.render('pos/corte', {
       title: `Corte de Caja - ${hora}`,
       hora,
+      esManual: false, // Es un corte automático programado
       ultimoCorte: ultimoCorte || saldoInicialDelDia,
       ventas,
       formatCurrency,
