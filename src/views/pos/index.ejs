@@ -27,6 +27,27 @@ ${necesitaSaldoInicial ? `
 </div>
 ` : ''}
 
+${necesitaCorte ? `
+<!-- Alerta de Corte Pendiente -->
+<div class="mb-4 bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg shadow-sm">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="flex-shrink-0">
+        <i class="fas fa-exclamation-triangle text-amber-600 text-2xl"></i>
+      </div>
+      <div>
+        <h3 class="text-lg font-bold text-amber-800">¡Es hora del corte de caja!</h3>
+        <p class="text-sm text-amber-700 mt-1">Se requiere realizar el corte programado a las <strong>${horaCorte}</strong></p>
+      </div>
+    </div>
+    <a href="/pos/corte?hora=${horaCorte}" class="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 transition font-medium flex items-center gap-2">
+      <i class="fas fa-cut"></i>
+      Realizar Corte
+    </a>
+  </div>
+</div>
+` : ''}
+
 <!-- Botón sutil para corte manual -->
 <div class="mb-4 flex justify-end">
   <button onclick="abrirModalCorteManual()" class="text-sm text-gray-600 hover:text-primary-600 transition flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100">

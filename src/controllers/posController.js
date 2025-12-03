@@ -132,6 +132,7 @@ const index = async (req, res) => {
       return res.redirect(`/pos/corte?hora=${hora}`);
     }
     
+    // Si necesita corte pero no hay corte previo (primer corte del día), mostrar banner de alerta
     // Si necesita saldo inicial, mostrar modal
     if (necesitaSaldoInicial && !necesita) {
       const [servicios, productos, pacientes] = await Promise.all([
@@ -164,6 +165,8 @@ const index = async (req, res) => {
       pacientes,
       formatCurrency,
       necesitaSaldoInicial: false,
+      necesitaCorte: necesita,
+      horaCorte: hora,
     });
   } catch (error) {
     console.error('Error al cargar POS:', error);
