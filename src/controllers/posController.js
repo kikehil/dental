@@ -771,7 +771,9 @@ const procesarCorte = async (req, res) => {
       desdeFecha = saldoInicialDelDia.createdAt;
       saldoInicial = parseFloat(saldoInicialDelDia.saldoInicial);
     } else {
-      return res.status(400).json({ error: 'No se encontró el saldo inicial del día' });
+      // No hay saldo inicial ni cortes, usar inicio del día con saldo inicial 0
+      desdeFecha = hoy;
+      saldoInicial = 0;
     }
 
     // Obtener ventas desde el último corte o saldo inicial
