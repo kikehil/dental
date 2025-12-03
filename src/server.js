@@ -54,7 +54,8 @@ app.use((req, res, next) => {
   res.locals.config = config;
   res.locals.currentPath = req.path;
   // Función helper para obtener hora actual en zona horaria correcta
-  res.locals.now = () => moment.tz(config.timezone);
+  // Convierte explícitamente la hora del servidor a la zona horaria configurada
+  res.locals.now = () => moment.tz(new Date(), config.timezone);
   next();
 });
 
