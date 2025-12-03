@@ -16,6 +16,10 @@ app.set('trust proxy', 1);
 // Configurar zona horaria
 moment.tz.setDefault(config.timezone);
 
+// Configurar locale español
+require('moment/locale/es');
+moment.locale('es');
+
 // Configurar motor de vistas
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
