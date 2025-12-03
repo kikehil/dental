@@ -16,6 +16,7 @@ model Usuario {
   activo    Boolean  @default(true)
   doctorId  Int?     @unique
   doctor    Doctor?  @relation(fields: [doctorId], references: [id])
+  cortesCaja CorteCaja[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -221,5 +222,25 @@ model VentaItem {
   subtotal    Decimal   @db.Decimal(10, 2)
 
   @@map("venta_items")
+}
+
+model CorteCaja {
+  id            Int       @id @default(autoincrement())
+  fecha         DateTime  @default(now())
+  hora          String?   // "14:00" o "18:00" (null para saldo inicial)
+  saldoInicial  Decimal   @db.Decimal(10, 2)
+  ventasEfectivo Decimal  @default(0) @db.Decimal(10, 2)
+  ventasTarjeta Decimal   @default(0) @db.Decimal(10, 2)
+  ventasTransferencia Decimal @default(0) @db.Decimal(10, 2)
+  totalVentas   Decimal   @default(0) @db.Decimal(10, 2)
+  saldoFinal    Decimal   @db.Decimal(10, 2)
+  diferencia    Decimal   @default(0) @db.Decimal(10, 2)
+  observaciones String?   @db.Text
+  usuarioId     Int?
+  usuario       Usuario?  @relation(fields: [usuarioId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("cortes_caja")
 }
 

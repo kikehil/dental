@@ -1,4 +1,44 @@
 <%- include('../layout', { body: `
+${estadoCaja ? `
+<!-- Estado de Caja -->
+<div class="mb-6 bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl shadow-lg p-6 text-white">
+  <div class="flex justify-between items-start mb-4">
+    <div>
+      <h3 class="text-lg font-bold mb-1">Estado de Caja</h3>
+      <p class="text-primary-100 text-sm">Sesión actual</p>
+    </div>
+    <div class="text-right">
+      <p class="text-2xl font-bold">${formatCurrency(estadoCaja.saldoEsperado)}</p>
+      <p class="text-primary-100 text-xs">Saldo Esperado</p>
+    </div>
+  </div>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+    <div class="bg-white bg-opacity-20 rounded-lg p-3">
+      <p class="text-xs text-primary-100">Saldo Inicial</p>
+      <p class="text-lg font-bold">${formatCurrency(estadoCaja.saldoInicial)}</p>
+    </div>
+    <div class="bg-white bg-opacity-20 rounded-lg p-3">
+      <p class="text-xs text-primary-100">Ventas</p>
+      <p class="text-lg font-bold">${estadoCaja.cantidadVentas}</p>
+    </div>
+    <div class="bg-white bg-opacity-20 rounded-lg p-3">
+      <p class="text-xs text-primary-100">Efectivo</p>
+      <p class="text-lg font-bold">${formatCurrency(estadoCaja.ventasEfectivo)}</p>
+    </div>
+    <div class="bg-white bg-opacity-20 rounded-lg p-3">
+      <p class="text-xs text-primary-100">Total Ventas</p>
+      <p class="text-lg font-bold">${formatCurrency(estadoCaja.totalVentas)}</p>
+    </div>
+  </div>
+  <div class="mt-4 pt-4 border-t border-primary-400">
+    <button onclick="abrirModalCorteManual()" class="w-full bg-white bg-opacity-20 hover:bg-opacity-30 text-white py-2 rounded-lg transition font-medium flex items-center justify-center gap-2">
+      <i class="fas fa-cut"></i>
+      Corte Manual de Caja
+    </button>
+  </div>
+</div>
+` : ''}
+
 <!-- Resumen del Día -->
 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
   <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-500">
@@ -213,5 +253,93 @@ document.addEventListener('keydown', function(e) {
 document.getElementById('modalDetalle').addEventListener('click', function(e) {
   if (e.target === this) cerrarDetalle();
 });
+
+function abrirModalCorteManual() {
+  var modal = document.createElement('div');
+  modal.id = 'modalCorteManual';
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  modal.innerHTML = 
+    '<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4">' +
+      '<div class="p-6 border-b">' +
+        '<h3 class="text-2xl font-bold text-gray-800 flex items-center gap-3">' +
+          '<i class="fas fa-shield-alt text-red-500"></i>' +
+          'Verificación Requerida' +
+        '</h3>' +
+        '<p class="text-gray-600 mt-2">Ingresa la contraseña del administrador para realizar un corte manual</p>' +
+      '</div>' +
+      '<div class="p-6">' +
+        '<form id="formVerificarAdmin" onsubmit="verificarAdmin(event)">' +
+          '<div class="mb-4">' +
+            '<label class="block text-sm font-medium text-gray-700 mb-2">Contraseña de Administrador</label>' +
+            '<input type="password" id="passwordAdmin" required ' +
+                   'class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" ' +
+                   'placeholder="Ingresa la contraseña" autofocus>' +
+            '<p id="errorPassword" class="text-red-500 text-sm mt-1 hidden"></p>' +
+          '</div>' +
+          '<div class="flex gap-4">' +
+            '<button type="button" onclick="cerrarModalCorteManual()" ' +
+                    'class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition font-medium">' +
+              'Cancelar' +
+            '</button>' +
+            '<button type="submit" ' +
+                    'class="flex-1 bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition font-medium">' +
+              '<i class="fas fa-check mr-2"></i> Verificar' +
+            '</button>' +
+          '</div>' +
+        '</form>' +
+      '</div>' +
+    '</div>';
+  
+  document.body.appendChild(modal);
+  
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) cerrarModalCorteManual();
+  });
+}
+
+function cerrarModalCorteManual() {
+  var modal = document.getElementById('modalCorteManual');
+  if (modal) modal.remove();
+}
+
+function verificarAdmin(event) {
+  event.preventDefault();
+  const password = document.getElementById('passwordAdmin').value;
+  const errorElement = document.getElementById('errorPassword');
+  
+  if (!password) {
+    errorElement.textContent = 'Ingresa la contraseña';
+    errorElement.classList.remove('hidden');
+    return;
+  }
+
+  const submitBtn = event.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Verificando...';
+
+  fetch('/pos/verificar-admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: password })
+  })
+  .then(function(response) { return response.json(); })
+  .then(function(result) {
+    if (result.success) {
+      cerrarModalCorteManual();
+      window.location.href = '/pos/corte-manual';
+    } else {
+      errorElement.textContent = result.error || 'Contraseña incorrecta';
+      errorElement.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Verificar';
+    }
+  })
+  .catch(function(error) {
+    errorElement.textContent = 'Error al verificar contraseña';
+    errorElement.classList.remove('hidden');
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Verificar';
+  });
+}
 </script>
 `}) %>

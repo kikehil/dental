@@ -1,0 +1,238 @@
+<%- include('../layout', { body: `
+<div class="max-w-4xl mx-auto">
+  <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-800">
+          ${esManual ? '<i class="fas fa-cut text-red-500 mr-2"></i>Corte Manual de Caja' : 'Corte de Caja - ' + hora}
+        </h2>
+        <p class="text-gray-600">${moment().format('DD/MM/YYYY HH:mm')}</p>
+        ${esManual ? '<p class="text-sm text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>Corte realizado manualmente</p>' : ''}
+      </div>
+      <a href="/pos" class="text-gray-500 hover:text-gray-700">
+        <i class="fas fa-times text-2xl"></i>
+      </a>
+    </div>
+
+    <!-- Resumen -->
+    <div class="grid md:grid-cols-2 gap-4 mb-6">
+      <div class="bg-primary-50 rounded-lg p-4 border-l-4 border-primary-500">
+        <p class="text-sm text-gray-600 mb-1">Saldo Inicial</p>
+        <p class="text-2xl font-bold text-primary-600">${formatCurrency(resumen.saldoInicial)}</p>
+      </div>
+      <div class="bg-secondary-50 rounded-lg p-4 border-l-4 border-secondary-500">
+        <p class="text-sm text-gray-600 mb-1">Total Ventas</p>
+        <p class="text-2xl font-bold text-secondary-600">${formatCurrency(resumen.totalVentas)}</p>
+        <p class="text-xs text-gray-500 mt-1">${resumen.cantidadVentas} venta(s)</p>
+      </div>
+    </div>
+
+    <!-- Desglose por método de pago -->
+    <div class="grid md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-green-50 rounded-lg p-4">
+        <p class="text-sm text-gray-600 mb-1">Efectivo</p>
+        <p class="text-xl font-bold text-green-600">${formatCurrency(resumen.ventasEfectivo)}</p>
+      </div>
+      <div class="bg-blue-50 rounded-lg p-4">
+        <p class="text-sm text-gray-600 mb-1">Tarjeta</p>
+        <p class="text-xl font-bold text-blue-600">${formatCurrency(resumen.ventasTarjeta)}</p>
+      </div>
+      <div class="bg-purple-50 rounded-lg p-4">
+        <p class="text-sm text-gray-600 mb-1">Transferencia</p>
+        <p class="text-xl font-bold text-purple-600">${formatCurrency(resumen.ventasTransferencia)}</p>
+      </div>
+    </div>
+
+    <!-- Saldo esperado -->
+    <div class="bg-amber-50 rounded-lg p-4 mb-6 border-l-4 border-amber-500">
+      <p class="text-sm text-gray-600 mb-1">Saldo Esperado en Caja</p>
+      <p class="text-3xl font-bold text-amber-600">${formatCurrency(resumen.saldoEsperado)}</p>
+      <p class="text-xs text-gray-500 mt-1">Saldo Inicial + Ventas en Efectivo</p>
+    </div>
+
+    <!-- Formulario de corte -->
+    <form id="formCorte" onsubmit="procesarCorte(event)" class="bg-gray-50 rounded-lg p-6">
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Saldo Final en Caja ($)
+        </label>
+        <input type="number" id="saldoFinal" step="0.01" min="0" required 
+               class="w-full px-4 py-3 border border-gray-300 rounded-lg text-2xl font-bold text-center focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+               placeholder="0.00" autofocus>
+        <p class="text-xs text-gray-500 mt-1">Ingresa el saldo real contado en caja</p>
+      </div>
+
+      <div id="diferenciaContainer" class="mb-4 hidden">
+        <div class="p-3 rounded-lg" id="diferenciaBox">
+          <p class="text-sm font-medium mb-1">Diferencia</p>
+          <p class="text-xl font-bold" id="diferenciaTexto"></p>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Observaciones (opcional)
+        </label>
+        <textarea id="observaciones" rows="3" 
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="Notas sobre el corte..."></textarea>
+      </div>
+
+      <div class="flex gap-4">
+        <button type="button" onclick="window.location.href='/pos'" 
+                class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition font-medium">
+          Cancelar
+        </button>
+        <button type="submit" 
+                class="flex-1 bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition font-medium">
+          <i class="fas fa-check mr-2"></i> Confirmar Corte
+        </button>
+      </div>
+    </form>
+
+    <!-- Lista de ventas -->
+    ${ventas.length > 0 ? `
+    <div class="mt-6 bg-white rounded-xl shadow-sm p-6">
+      <h3 class="text-lg font-bold text-gray-800 mb-4">Ventas del Período</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2 text-left text-gray-600">Folio</th>
+              <th class="px-4 py-2 text-left text-gray-600">Paciente</th>
+              <th class="px-4 py-2 text-left text-gray-600">Método</th>
+              <th class="px-4 py-2 text-right text-gray-600">Total</th>
+              <th class="px-4 py-2 text-left text-gray-600">Hora</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            ${ventas.map(function(v) {
+              return '<tr>' +
+                '<td class="px-4 py-2 font-mono text-gray-800">' + v.folio + '</td>' +
+                '<td class="px-4 py-2 text-gray-600">' + (v.paciente ? v.paciente.nombre + ' ' + v.paciente.apellido : 'Cliente general') + '</td>' +
+                '<td class="px-4 py-2"><span class="px-2 py-1 rounded-full text-xs ' + 
+                  (v.metodoPago === 'efectivo' ? 'bg-green-100 text-green-700' : 
+                   v.metodoPago === 'tarjeta' ? 'bg-blue-100 text-blue-700' : 
+                   'bg-purple-100 text-purple-700') + '">' + v.metodoPago + '</span></td>' +
+                '<td class="px-4 py-2 text-right font-bold text-gray-800">' + formatCurrency(v.total) + '</td>' +
+                '<td class="px-4 py-2 text-gray-500">' + moment(v.createdAt).format('HH:mm') + '</td>' +
+              '</tr>';
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    ` : ''}
+  </div>
+</div>
+
+<script>
+function procesarCorte(event) {
+  event.preventDefault();
+  const saldoFinal = parseFloat(document.getElementById('saldoFinal').value);
+  const observaciones = document.getElementById('observaciones').value;
+  
+  if (isNaN(saldoFinal) || saldoFinal < 0) {
+    mostrarNotificacion('error', 'Error', 'Ingresa un saldo final válido');
+    return;
+  }
+
+    fetch('${esManual ? '/pos/corte-manual' : '/pos/corte'}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        hora: '${hora}',
+        saldoFinal: saldoFinal,
+        observaciones: observaciones
+      })
+    })
+  .then(function(response) { return response.json(); })
+  .then(function(result) {
+    if (result.success) {
+      mostrarNotificacion('success', 'Corte Realizado', 
+        '<p>El corte de caja se ha registrado correctamente.</p>' +
+        '<p class="mt-2 text-sm text-gray-600">Serás redirigido al punto de venta...</p>'
+      );
+      setTimeout(function() {
+        window.location.href = '/pos';
+      }, 2000);
+    } else {
+      mostrarNotificacion('error', 'Error', result.error || 'No se pudo procesar el corte');
+    }
+  })
+  .catch(function(error) {
+    mostrarNotificacion('error', 'Error', 'No se pudo procesar el corte');
+  });
+}
+
+// Calcular diferencia en tiempo real
+document.getElementById('saldoFinal').addEventListener('input', function() {
+  const saldoFinal = parseFloat(this.value) || 0;
+  const saldoEsperado = ${resumen.saldoEsperado};
+  const diferencia = saldoFinal - saldoEsperado;
+  
+  const container = document.getElementById('diferenciaContainer');
+  const box = document.getElementById('diferenciaBox');
+  const texto = document.getElementById('diferenciaTexto');
+  
+  if (!isNaN(saldoFinal) && saldoFinal > 0) {
+    container.classList.remove('hidden');
+    if (diferencia === 0) {
+      box.className = 'p-3 rounded-lg bg-green-100 border border-green-300';
+      texto.className = 'text-xl font-bold text-green-700';
+      texto.textContent = 'Cuadra perfecto';
+    } else if (diferencia > 0) {
+      box.className = 'p-3 rounded-lg bg-blue-100 border border-blue-300';
+      texto.className = 'text-xl font-bold text-blue-700';
+      texto.textContent = 'Sobrante: ' + diferencia.toFixed(2);
+    } else {
+      box.className = 'p-3 rounded-lg bg-red-100 border border-red-300';
+      texto.className = 'text-xl font-bold text-red-700';
+      texto.textContent = 'Faltante: ' + Math.abs(diferencia).toFixed(2);
+    }
+  } else {
+    container.classList.add('hidden');
+  }
+});
+
+function mostrarNotificacion(tipo, titulo, mensaje) {
+  var existente = document.getElementById('notificacionModal');
+  if (existente) existente.remove();
+
+  var iconos = {
+    success: '<div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-check text-3xl text-green-500"></i></div>',
+    error: '<div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-times text-3xl text-red-500"></i></div>',
+  };
+
+  var colores = {
+    success: 'bg-green-500 hover:bg-green-600',
+    error: 'bg-red-500 hover:bg-red-600',
+  };
+
+  var modal = document.createElement('div');
+  modal.id = 'notificacionModal';
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  modal.innerHTML = 
+    '<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4">' +
+      '<div class="p-6 text-center">' +
+        iconos[tipo] +
+        '<h3 class="text-xl font-bold text-gray-800 mb-2">' + titulo + '</h3>' +
+        '<div class="text-gray-600">' + mensaje + '</div>' +
+      '</div>' +
+      '<div class="px-6 pb-6">' +
+        '<button onclick="cerrarNotificacion()" class="w-full ' + colores[tipo] + ' text-white py-3 rounded-xl font-medium">' +
+          'Aceptar' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(modal);
+}
+
+function cerrarNotificacion() {
+  var modal = document.getElementById('notificacionModal');
+  if (modal) modal.remove();
+}
+</script>
+`}) %>
+

@@ -46,25 +46,6 @@
 
   <!-- Historial -->
   <div class="lg:col-span-2 space-y-6">
-    <!-- Citas -->
-    <div class="bg-white rounded-xl shadow-sm p-6">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="font-bold text-gray-800"><i class="fas fa-calendar-alt text-primary-500 mr-2"></i>Historial de Citas</h3>
-        <a href="/citas/crear?pacienteId=${paciente.id}" class="text-primary-600 hover:text-primary-800 text-sm">
-          <i class="fas fa-plus mr-1"></i> Nueva Cita
-        </a>
-      </div>
-      ${paciente.citas.length > 0 ? '<div class="space-y-3">' + paciente.citas.map(c => 
-        '<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">' +
-          '<div>' +
-            '<p class="font-medium text-gray-800">' + moment(c.fecha).format('DD/MM/YYYY') + ' - ' + c.horaInicio + '</p>' +
-            '<p class="text-sm text-gray-500">Dr. ' + c.doctor.nombre + ' ' + c.doctor.apellido + '</p>' +
-          '</div>' +
-          '<span class="px-2 py-1 rounded-full text-xs ' + (c.estado === 'completada' ? 'bg-green-100 text-green-700' : c.estado === 'cancelada' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700') + '">' + c.estado + '</span>' +
-        '</div>'
-      ).join('') + '</div>' : '<p class="text-gray-500 text-center py-4">Sin citas registradas</p>'}
-    </div>
-
     <!-- Consultas -->
     <div class="bg-white rounded-xl shadow-sm p-6">
       <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-stethoscope text-secondary-500 mr-2"></i>Historial de Consultas</h3>

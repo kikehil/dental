@@ -1,10 +1,98 @@
 const prisma = require('../config/database');
+const bcrypt = require('bcryptjs');
+const moment = require('moment-timezone');
+const config = require('../config/config');
 const { generateFolio, formatCurrency } = require('../utils/helpers');
 const { notifyNewSale } = require('../utils/webhooks');
+
+// Función auxiliar para obtener el último corte de caja del día
+const getUltimoCorteHoy = async () => {
+  const hoy = moment().tz(config.timezone).startOf('day').toDate();
+  const mañana = moment().tz(config.timezone).endOf('day').toDate();
+  
+  const ultimoCorte = await prisma.corteCaja.findFirst({
+    where: {
+      fecha: { gte: hoy, lte: mañana },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  
+  return ultimoCorte;
+};
+
+// Función auxiliar para verificar si necesita corte de caja
+const necesitaCorte = async () => {
+  const ahora = moment().tz(config.timezone);
+  const hora = ahora.hour();
+  const minutos = ahora.minute();
+  
+  // Obtener último corte de hoy
+  const hoy = ahora.startOf('day').toDate();
+  const mañana = ahora.endOf('day').toDate();
+  const ultimoCorte = await prisma.corteCaja.findFirst({
+    where: {
+      fecha: { gte: hoy, lte: mañana },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  
+  // Verificar si ya pasó la hora del corte y no se ha hecho
+  const hora2pm = 14;
+  const hora6pm = 18;
+  
+  // Si es después de las 2pm y antes de las 6pm, y no hay corte de 2pm
+  if (hora >= hora2pm && hora < hora6pm) {
+    const corte2pmExiste = ultimoCorte && ultimoCorte.hora === '14:00';
+    if (!corte2pmExiste && (hora > hora2pm || (hora === hora2pm && minutos >= 0))) {
+      return { necesita: true, hora: '14:00' };
+    }
+  }
+  
+  // Si es después de las 6pm, y no hay corte de 6pm
+  if (hora >= hora6pm) {
+    const corte6pmExiste = ultimoCorte && ultimoCorte.hora === '18:00';
+    if (!corte6pmExiste) {
+      return { necesita: true, hora: '18:00' };
+    }
+  }
+  
+  return { necesita: false, hora: null };
+};
 
 // Mostrar punto de venta
 const index = async (req, res) => {
   try {
+    const ultimoCorte = await getUltimoCorteHoy();
+    const { necesita, hora } = await necesitaCorte();
+    
+    // Verificar si necesita saldo inicial
+    // No hay corte hoy, o el último corte fue a las 6pm (fin del día)
+    const necesitaSaldoInicial = !ultimoCorte || (ultimoCorte && ultimoCorte.hora === '18:00');
+    
+    // Si necesita corte y hay un corte previo, redirigir a la vista de corte
+    if (necesita && ultimoCorte && ultimoCorte.hora !== hora) {
+      return res.redirect(`/pos/corte?hora=${hora}`);
+    }
+    
+    // Si necesita saldo inicial, mostrar modal
+    if (necesitaSaldoInicial && !necesita) {
+      const [servicios, productos, pacientes] = await Promise.all([
+        prisma.servicio.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } }),
+        prisma.producto.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } }),
+        prisma.paciente.findMany({ where: { activo: true }, take: 100, orderBy: { nombre: 'asc' } }),
+      ]);
+
+      return res.render('pos/index', {
+        title: 'Punto de Venta',
+        servicios,
+        productos,
+        pacientes,
+        formatCurrency,
+        necesitaSaldoInicial: true,
+        ultimoCorte: null,
+      });
+    }
+    
     const [servicios, productos, pacientes] = await Promise.all([
       prisma.servicio.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } }),
       prisma.producto.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } }),
@@ -17,6 +105,7 @@ const index = async (req, res) => {
       productos,
       pacientes,
       formatCurrency,
+      necesitaSaldoInicial: false,
     });
   } catch (error) {
     console.error('Error al cargar POS:', error);
@@ -162,6 +251,80 @@ const ventas = async (req, res) => {
       ? Object.keys(metodos).reduce((a, b) => metodos[a] > metodos[b] ? a : b)
       : 'N/A';
 
+    // Calcular estado de caja de la sesión actual
+    const hoyCaja = moment().tz(config.timezone).startOf('day').toDate();
+    const mañanaCaja = moment().tz(config.timezone).endOf('day').toDate();
+    
+    const saldoInicialDelDia = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoyCaja, lte: mañanaCaja },
+        hora: null,
+      },
+    });
+    
+    const ultimoCorte = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoyCaja, lte: mañanaCaja },
+        hora: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    
+    let saldoInicial = 0;
+    let ventasDesdeUltimoCorte = [];
+    
+    if (ultimoCorte) {
+      saldoInicial = parseFloat(ultimoCorte.saldoFinal);
+      const desdeUltimoCorte = ultimoCorte.createdAt;
+      
+      ventasDesdeUltimoCorte = await prisma.venta.findMany({
+        where: {
+          createdAt: { gte: desdeUltimoCorte },
+        },
+        select: {
+          total: true,
+          metodoPago: true,
+        },
+      });
+    } else if (saldoInicialDelDia) {
+      saldoInicial = parseFloat(saldoInicialDelDia.saldoInicial);
+      const desdeSaldoInicial = saldoInicialDelDia.createdAt;
+      
+      ventasDesdeUltimoCorte = await prisma.venta.findMany({
+        where: {
+          createdAt: { gte: desdeSaldoInicial },
+        },
+        select: {
+          total: true,
+          metodoPago: true,
+        },
+      });
+    } else {
+      const hoyInicio = moment().tz(config.timezone).startOf('day').toDate();
+      ventasDesdeUltimoCorte = await prisma.venta.findMany({
+        where: {
+          createdAt: { gte: hoyInicio },
+        },
+        select: {
+          total: true,
+          metodoPago: true,
+        },
+      });
+    }
+    
+    const totalVentasSesion = ventasDesdeUltimoCorte.reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const ventasEfectivoSesion = ventasDesdeUltimoCorte
+      .filter(v => v.metodoPago === 'efectivo')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const ventasTarjetaSesion = ventasDesdeUltimoCorte
+      .filter(v => v.metodoPago === 'tarjeta')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const ventasTransferenciaSesion = ventasDesdeUltimoCorte
+      .filter(v => v.metodoPago === 'transferencia')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    
+    const saldoEsperado = saldoInicial + ventasEfectivoSesion;
+
     res.render('pos/ventas', {
       title: 'Historial de Ventas',
       ventas: ventasList,
@@ -171,6 +334,15 @@ const ventas = async (req, res) => {
         totalHoy: formatCurrency(totalHoy),
         promedio: formatCurrency(promedio),
         metodoPopular: metodoPopular,
+      },
+      estadoCaja: {
+        saldoInicial,
+        totalVentas: totalVentasSesion,
+        ventasEfectivo: ventasEfectivoSesion,
+        ventasTarjeta: ventasTarjetaSesion,
+        ventasTransferencia: ventasTransferenciaSesion,
+        saldoEsperado,
+        cantidadVentas: ventasDesdeUltimoCorte.length,
       },
     });
   } catch (error) {
@@ -322,6 +494,468 @@ const getVenta = async (req, res) => {
   }
 };
 
+// Guardar saldo inicial
+const guardarSaldoInicial = async (req, res) => {
+  try {
+    const { saldoInicial } = req.body;
+    
+    if (!saldoInicial || parseFloat(saldoInicial) < 0) {
+      return res.status(400).json({ error: 'Saldo inicial inválido' });
+    }
+
+    // Verificar si ya existe un corte hoy sin saldo inicial (no debería pasar)
+    const hoy = moment().tz(config.timezone).startOf('day').toDate();
+    const mañana = moment().tz(config.timezone).endOf('day').toDate();
+    
+    const corteExistente = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoy, lte: mañana },
+        hora: { is: null }, // Saldo inicial no tiene hora específica
+      },
+    });
+
+    if (corteExistente) {
+      return res.status(400).json({ error: 'Ya se registró un saldo inicial hoy' });
+    }
+
+    // Crear registro de saldo inicial (sin hora específica)
+    await prisma.corteCaja.create({
+      data: {
+        fecha: new Date(),
+        hora: null,
+        saldoInicial: parseFloat(saldoInicial),
+        saldoFinal: parseFloat(saldoInicial),
+        usuarioId: req.session.user?.id || null,
+      },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error al guardar saldo inicial:', error);
+    res.status(500).json({ error: 'Error al guardar saldo inicial' });
+  }
+};
+
+// Mostrar vista de corte de caja
+const mostrarCorte = async (req, res) => {
+  try {
+    const { hora } = req.query;
+    
+    if (hora !== '14:00' && hora !== '18:00') {
+      return res.redirect('/pos');
+    }
+
+    const hoy = moment().tz(config.timezone).startOf('day').toDate();
+    const mañana = moment().tz(config.timezone).endOf('day').toDate();
+    
+    // Buscar el saldo inicial del día o el último corte
+    const saldoInicialDelDia = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoy, lte: mañana },
+        hora: { is: null },
+      },
+    });
+    
+    const ultimoCorte = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoy, lte: mañana },
+        hora: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    
+    // Determinar desde cuándo contar las ventas
+    let desdeFecha;
+    let saldoInicial;
+    
+    if (ultimoCorte) {
+      desdeFecha = ultimoCorte.createdAt;
+      saldoInicial = parseFloat(ultimoCorte.saldoFinal);
+    } else if (saldoInicialDelDia) {
+      desdeFecha = saldoInicialDelDia.createdAt;
+      saldoInicial = parseFloat(saldoInicialDelDia.saldoInicial);
+    } else {
+      // No hay saldo inicial ni cortes, usar inicio del día
+      desdeFecha = hoy;
+      saldoInicial = 0;
+    }
+
+    // Obtener ventas desde el último corte o saldo inicial
+    const ventas = await prisma.venta.findMany({
+      where: {
+        createdAt: { gte: desdeFecha },
+      },
+      include: {
+        paciente: true,
+        items: {
+          include: {
+            servicio: true,
+            producto: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Calcular totales
+    const ventasEfectivo = ventas
+      .filter(v => v.metodoPago === 'efectivo')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const ventasTarjeta = ventas
+      .filter(v => v.metodoPago === 'tarjeta')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const ventasTransferencia = ventas
+      .filter(v => v.metodoPago === 'transferencia')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const totalVentas = ventas.reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const saldoEsperado = saldoInicial + ventasEfectivo;
+
+    res.render('pos/corte', {
+      title: `Corte de Caja - ${hora}`,
+      hora,
+      ultimoCorte: ultimoCorte || saldoInicialDelDia,
+      ventas,
+      formatCurrency,
+      resumen: {
+        saldoInicial,
+        ventasEfectivo,
+        ventasTarjeta,
+        ventasTransferencia,
+        totalVentas,
+        saldoEsperado,
+        cantidadVentas: ventas.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error al mostrar corte:', error);
+    res.render('error', { title: 'Error', message: 'Error al cargar corte de caja', error });
+  }
+};
+
+// Procesar corte de caja
+const procesarCorte = async (req, res) => {
+  try {
+    const { hora, saldoFinal, observaciones } = req.body;
+    
+    if (hora !== '14:00' && hora !== '18:00') {
+      return res.status(400).json({ error: 'Hora de corte inválida' });
+    }
+
+    const hoy = moment().tz(config.timezone).startOf('day').toDate();
+    const mañana = moment().tz(config.timezone).endOf('day').toDate();
+    
+    // Verificar si ya existe un corte a esta hora
+    const corteExistente = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoy, lte: mañana },
+        hora: hora,
+      },
+    });
+
+    if (corteExistente) {
+      return res.status(400).json({ error: 'Ya se realizó el corte a esta hora' });
+    }
+
+    // Buscar el saldo inicial del día o el último corte
+    const saldoInicialDelDia = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoy, lte: mañana },
+        hora: { is: null },
+      },
+    });
+    
+    const ultimoCorte = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoy, lte: mañana },
+        hora: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    
+    // Determinar desde cuándo contar las ventas y el saldo inicial
+    let desdeFecha;
+    let saldoInicial;
+    
+    if (ultimoCorte) {
+      desdeFecha = ultimoCorte.createdAt;
+      saldoInicial = parseFloat(ultimoCorte.saldoFinal);
+    } else if (saldoInicialDelDia) {
+      desdeFecha = saldoInicialDelDia.createdAt;
+      saldoInicial = parseFloat(saldoInicialDelDia.saldoInicial);
+    } else {
+      return res.status(400).json({ error: 'No se encontró el saldo inicial del día' });
+    }
+
+    // Obtener ventas desde el último corte o saldo inicial
+    const ventas = await prisma.venta.findMany({
+      where: {
+        createdAt: { gte: desdeFecha },
+      },
+      select: {
+        total: true,
+        metodoPago: true,
+      },
+    });
+
+    // Calcular totales (saldoInicial ya fue asignado arriba)
+    const ventasEfectivo = ventas
+      .filter(v => v.metodoPago === 'efectivo')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const ventasTarjeta = ventas
+      .filter(v => v.metodoPago === 'tarjeta')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const ventasTransferencia = ventas
+      .filter(v => v.metodoPago === 'transferencia')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const totalVentas = ventas.reduce((sum, v) => sum + parseFloat(v.total), 0);
+    
+    const saldoFinalCalculado = parseFloat(saldoFinal);
+    const diferencia = saldoFinalCalculado - (saldoInicial + ventasEfectivo);
+
+    // Crear corte de caja
+    await prisma.corteCaja.create({
+      data: {
+        fecha: new Date(),
+        hora: hora,
+        saldoInicial: saldoInicial,
+        ventasEfectivo: ventasEfectivo,
+        ventasTarjeta: ventasTarjeta,
+        ventasTransferencia: ventasTransferencia,
+        totalVentas: totalVentas,
+        saldoFinal: saldoFinalCalculado,
+        diferencia: diferencia,
+        observaciones: observaciones || null,
+        usuarioId: req.session.user?.id || null,
+      },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error al procesar corte:', error);
+    res.status(500).json({ error: 'Error al procesar corte de caja' });
+  }
+};
+
+// Verificar contraseña de administrador
+const verificarPasswordAdmin = async (req, res) => {
+  try {
+    const { password } = req.body;
+    
+    if (!password) {
+      return res.status(400).json({ error: 'Contraseña requerida' });
+    }
+
+    // Buscar usuario administrador
+    const admin = await prisma.usuario.findFirst({
+      where: {
+        rol: 'admin',
+        activo: true,
+      },
+    });
+
+    if (!admin) {
+      return res.status(404).json({ error: 'No se encontró un administrador activo' });
+    }
+
+    // Verificar contraseña
+    const isValid = await bcrypt.compare(password, admin.password);
+    
+    if (!isValid) {
+      return res.status(401).json({ error: 'Contraseña incorrecta' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error al verificar contraseña:', error);
+    res.status(500).json({ error: 'Error al verificar contraseña' });
+  }
+};
+
+// Mostrar vista de corte manual
+const mostrarCorteManual = async (req, res) => {
+  try {
+    const hoy = moment().tz(config.timezone).startOf('day').toDate();
+    const mañana = moment().tz(config.timezone).endOf('day').toDate();
+    
+    // Buscar el saldo inicial del día o el último corte
+    const saldoInicialDelDia = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoy, lte: mañana },
+        hora: { is: null },
+      },
+    });
+    
+    const ultimoCorte = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoy, lte: mañana },
+        hora: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    
+    // Determinar desde cuándo contar las ventas
+    let desdeFecha;
+    let saldoInicial;
+    
+    if (ultimoCorte) {
+      desdeFecha = ultimoCorte.createdAt;
+      saldoInicial = parseFloat(ultimoCorte.saldoFinal);
+    } else if (saldoInicialDelDia) {
+      desdeFecha = saldoInicialDelDia.createdAt;
+      saldoInicial = parseFloat(saldoInicialDelDia.saldoInicial);
+    } else {
+      desdeFecha = hoy;
+      saldoInicial = 0;
+    }
+
+    // Obtener ventas desde el último corte o saldo inicial
+    const ventas = await prisma.venta.findMany({
+      where: {
+        createdAt: { gte: desdeFecha },
+      },
+      include: {
+        paciente: true,
+        items: {
+          include: {
+            servicio: true,
+            producto: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Calcular totales
+    const ventasEfectivo = ventas
+      .filter(v => v.metodoPago === 'efectivo')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const ventasTarjeta = ventas
+      .filter(v => v.metodoPago === 'tarjeta')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const ventasTransferencia = ventas
+      .filter(v => v.metodoPago === 'transferencia')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const totalVentas = ventas.reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const saldoEsperado = saldoInicial + ventasEfectivo;
+
+    // Obtener hora actual para el corte manual
+    const horaActual = moment().tz(config.timezone).format('HH:mm');
+
+    res.render('pos/corte', {
+      title: 'Corte Manual de Caja',
+      hora: horaActual,
+      esManual: true,
+      ultimoCorte: ultimoCorte || saldoInicialDelDia,
+      ventas,
+      formatCurrency,
+      resumen: {
+        saldoInicial,
+        ventasEfectivo,
+        ventasTarjeta,
+        ventasTransferencia,
+        totalVentas,
+        saldoEsperado,
+        cantidadVentas: ventas.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error al mostrar corte manual:', error);
+    res.render('error', { title: 'Error', message: 'Error al cargar corte de caja', error });
+  }
+};
+
+// Procesar corte manual
+const procesarCorteManual = async (req, res) => {
+  try {
+    const { hora, saldoFinal, observaciones } = req.body;
+    
+    if (!hora) {
+      return res.status(400).json({ error: 'Hora requerida' });
+    }
+
+    const hoy = moment().tz(config.timezone).startOf('day').toDate();
+    const mañana = moment().tz(config.timezone).endOf('day').toDate();
+    
+    // Buscar el saldo inicial del día o el último corte
+    const saldoInicialDelDia = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoy, lte: mañana },
+        hora: { is: null },
+      },
+    });
+    
+    const ultimoCorte = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: hoy, lte: mañana },
+        hora: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    
+    // Determinar desde cuándo contar las ventas y el saldo inicial
+    let desdeFecha;
+    let saldoInicial;
+    
+    if (ultimoCorte) {
+      desdeFecha = ultimoCorte.createdAt;
+      saldoInicial = parseFloat(ultimoCorte.saldoFinal);
+    } else if (saldoInicialDelDia) {
+      desdeFecha = saldoInicialDelDia.createdAt;
+      saldoInicial = parseFloat(saldoInicialDelDia.saldoInicial);
+    } else {
+      return res.status(400).json({ error: 'No se encontró el saldo inicial del día' });
+    }
+
+    // Obtener ventas desde el último corte o saldo inicial
+    const ventas = await prisma.venta.findMany({
+      where: {
+        createdAt: { gte: desdeFecha },
+      },
+      select: {
+        total: true,
+        metodoPago: true,
+      },
+    });
+
+    // Calcular totales
+    const ventasEfectivo = ventas
+      .filter(v => v.metodoPago === 'efectivo')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const ventasTarjeta = ventas
+      .filter(v => v.metodoPago === 'tarjeta')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const ventasTransferencia = ventas
+      .filter(v => v.metodoPago === 'transferencia')
+      .reduce((sum, v) => sum + parseFloat(v.total), 0);
+    const totalVentas = ventas.reduce((sum, v) => sum + parseFloat(v.total), 0);
+    
+    const saldoFinalCalculado = parseFloat(saldoFinal);
+    const diferencia = saldoFinalCalculado - (saldoInicial + ventasEfectivo);
+
+    // Crear corte de caja manual (hora personalizada)
+    await prisma.corteCaja.create({
+      data: {
+        fecha: new Date(),
+        hora: hora, // Hora manual
+        saldoInicial: saldoInicial,
+        ventasEfectivo: ventasEfectivo,
+        ventasTarjeta: ventasTarjeta,
+        ventasTransferencia: ventasTransferencia,
+        totalVentas: totalVentas,
+        saldoFinal: saldoFinalCalculado,
+        diferencia: diferencia,
+        observaciones: observaciones || null,
+        usuarioId: req.session.user?.id || null,
+      },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error al procesar corte manual:', error);
+    res.status(500).json({ error: 'Error al procesar corte de caja' });
+  }
+};
+
 module.exports = {
   index,
   processSale,
@@ -331,5 +965,11 @@ module.exports = {
   productos,
   saveProducto,
   getVenta,
+  guardarSaldoInicial,
+  mostrarCorte,
+  procesarCorte,
+  verificarPasswordAdmin,
+  mostrarCorteManual,
+  procesarCorteManual,
 };
 

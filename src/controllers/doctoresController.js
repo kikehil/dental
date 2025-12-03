@@ -6,7 +6,6 @@ const index = async (req, res) => {
   try {
     const doctores = await prisma.doctor.findMany({
       include: {
-        _count: { select: { citas: true } },
         horarios: true,
       },
       orderBy: { nombre: 'asc' },

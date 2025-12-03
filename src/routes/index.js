@@ -5,13 +5,12 @@ const authRoutes = require('./authRoutes');
 const dashboardRoutes = require('./dashboardRoutes');
 const doctoresRoutes = require('./doctoresRoutes');
 const pacientesRoutes = require('./pacientesRoutes');
-const citasRoutes = require('./citasRoutes');
 const posRoutes = require('./posRoutes');
 
-// Ruta principal - redirige al dashboard o login
+// Ruta principal - redirige al punto de venta o login
 router.get('/', (req, res) => {
   if (req.session && req.session.user) {
-    res.redirect('/dashboard');
+    res.redirect('/pos');
   } else {
     res.redirect('/login');
   }
@@ -22,7 +21,6 @@ router.use('/', authRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/doctores', doctoresRoutes);
 router.use('/pacientes', pacientesRoutes);
-router.use('/citas', citasRoutes);
 router.use('/pos', posRoutes);
 
 module.exports = router;

@@ -93,11 +93,6 @@ const show = async (req, res) => {
       where: { id: parseInt(req.params.id) },
       include: {
         antecedentes: true,
-        citas: {
-          include: { doctor: true },
-          orderBy: { fecha: 'desc' },
-          take: 10,
-        },
         consultas: {
           include: { doctor: true },
           orderBy: { fecha: 'desc' },

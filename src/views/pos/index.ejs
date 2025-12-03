@@ -1,4 +1,40 @@
 <%- include('../layout', { body: `
+${necesitaSaldoInicial ? `
+<!-- Modal Saldo Inicial -->
+<div id="modalSaldoInicial" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: flex;">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4">
+    <div class="p-6 border-b">
+      <h3 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
+        <i class="fas fa-cash-register text-primary-500"></i>
+        Saldo Inicial de Caja
+      </h3>
+      <p class="text-gray-600 mt-2">Ingresa el saldo inicial para comenzar a operar</p>
+    </div>
+    <div class="p-6">
+      <form id="formSaldoInicial" onsubmit="guardarSaldoInicial(event)">
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Saldo Inicial ($)</label>
+          <input type="number" id="saldoInicial" step="0.01" min="0" required 
+                 class="w-full px-4 py-3 border border-gray-300 rounded-lg text-2xl font-bold text-center focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                 placeholder="0.00" autofocus>
+        </div>
+        <button type="submit" class="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition font-medium">
+          <i class="fas fa-check mr-2"></i> Confirmar Saldo Inicial
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+` : ''}
+
+<!-- Botón sutil para corte manual -->
+<div class="mb-4 flex justify-end">
+  <button onclick="abrirModalCorteManual()" class="text-sm text-gray-600 hover:text-primary-600 transition flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100">
+    <i class="fas fa-cut text-xs"></i>
+    <span>Corte Manual</span>
+  </button>
+</div>
+
 <div class="grid lg:grid-cols-3 gap-6">
   <!-- Catálogo -->
   <div class="lg:col-span-2 space-y-6">
@@ -47,24 +83,27 @@
 
   <!-- Carrito -->
   <div class="lg:col-span-1">
-    <div class="bg-white rounded-xl shadow-sm p-6 sticky top-6">
-      <h3 class="text-lg font-bold text-gray-800 mb-4">
-        <i class="fas fa-shopping-cart text-primary-500 mr-2"></i> Carrito
+    <div class="bg-gradient-to-br from-primary-50 via-secondary-50 to-primary-100 rounded-xl shadow-lg border-2 border-primary-200 p-6 sticky top-6">
+      <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+        <div class="bg-gradient-to-r from-primary-500 to-secondary-500 p-2 rounded-lg mr-2">
+          <i class="fas fa-shopping-cart text-white"></i>
+        </div>
+        Carrito
       </h3>
 
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Paciente (opcional)</label>
-        <select id="pacienteVenta" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        <select id="pacienteVenta" class="w-full px-3 py-2 border-2 border-primary-200 bg-white rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
           <option value="">Cliente general</option>
           ` + pacientes.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + ' ' + p.apellido + '</option>'; }).join('') + `
         </select>
       </div>
 
-      <div id="itemsCarrito" class="my-4 space-y-2 max-h-64 overflow-y-auto">
+      <div id="itemsCarrito" class="my-4 space-y-2 max-h-64 overflow-y-auto bg-white bg-opacity-60 rounded-lg p-3 border border-primary-200">
         <p class="text-gray-500 text-center py-4">Carrito vacío</p>
       </div>
 
-      <div class="border-t pt-4 space-y-2">
+      <div class="border-t-2 border-primary-200 pt-4 space-y-2 bg-white bg-opacity-50 rounded-lg p-3 -mx-3 px-3">
         <div class="flex justify-between text-gray-600">
           <span>Subtotal:</span>
           <span id="subtotal">$0.00</span>
@@ -81,14 +120,14 @@
 
       <div class="mt-4">
         <label class="block text-sm font-medium text-gray-700 mb-2">Método de pago</label>
-        <select id="metodoPago" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+        <select id="metodoPago" class="w-full px-3 py-2 border-2 border-primary-200 bg-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
           <option value="efectivo">Efectivo</option>
           <option value="tarjeta">Tarjeta</option>
           <option value="transferencia">Transferencia</option>
         </select>
       </div>
 
-      <button onclick="procesarVenta()" class="w-full bg-secondary-500 text-white py-3 rounded-lg mt-4 hover:bg-secondary-600 transition font-medium">
+      <button onclick="procesarVenta()" class="w-full bg-gradient-to-r from-secondary-500 to-secondary-600 text-white py-3 rounded-lg mt-4 hover:from-secondary-600 hover:to-secondary-700 transition font-medium shadow-lg hover:shadow-xl transform hover:scale-[1.02]">
         <i class="fas fa-cash-register mr-2"></i> Cobrar
       </button>
     </div>
@@ -151,16 +190,16 @@ function renderCarrito() {
     container.innerHTML = '<p class="text-gray-500 text-center py-4">Carrito vacío</p>';
   } else {
     container.innerHTML = carrito.map(function(item, i) {
-      return '<div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">' +
+      return '<div class="flex items-center justify-between p-3 bg-white rounded-lg border border-primary-200 shadow-sm hover:shadow-md transition">' +
         '<div class="flex-1">' +
           '<p class="text-sm font-medium text-gray-800">' + item.nombre + '</p>' +
           '<p class="text-xs text-gray-500">$' + item.precio.toFixed(2) + ' x ' + item.cantidad + '</p>' +
         '</div>' +
         '<div class="flex items-center gap-2">' +
-          '<button onclick="cambiarCantidad(' + i + ', -1)" class="w-6 h-6 bg-gray-200 rounded text-gray-600 hover:bg-gray-300">-</button>' +
-          '<span class="w-6 text-center">' + item.cantidad + '</span>' +
-          '<button onclick="cambiarCantidad(' + i + ', 1)" class="w-6 h-6 bg-gray-200 rounded text-gray-600 hover:bg-gray-300">+</button>' +
-          '<button onclick="quitarItem(' + i + ')" class="text-red-500 hover:text-red-700 ml-2"><i class="fas fa-trash"></i></button>' +
+          '<button onclick="cambiarCantidad(' + i + ', -1)" class="w-7 h-7 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded transition">-</button>' +
+          '<span class="w-8 text-center font-medium text-gray-700">' + item.cantidad + '</span>' +
+          '<button onclick="cambiarCantidad(' + i + ', 1)" class="w-7 h-7 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded transition">+</button>' +
+          '<button onclick="quitarItem(' + i + ')" class="text-red-500 hover:text-red-700 ml-2 p-1 hover:bg-red-50 rounded transition"><i class="fas fa-trash"></i></button>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -264,6 +303,124 @@ function cerrarNotificacion() {
     modal.style.animation = 'fadeOut 0.2s ease-out';
     setTimeout(function() { modal.remove(); }, 200);
   }
+}
+
+function guardarSaldoInicial(event) {
+  event.preventDefault();
+  const saldo = parseFloat(document.getElementById('saldoInicial').value);
+  
+  if (isNaN(saldo) || saldo < 0) {
+    mostrarNotificacion('error', 'Error', 'Ingresa un saldo válido');
+    return;
+  }
+
+  fetch('/pos/saldo-inicial', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ saldoInicial: saldo })
+  })
+  .then(function(response) { return response.json(); })
+  .then(function(result) {
+    if (result.success) {
+      window.location.reload();
+    } else {
+      mostrarNotificacion('error', 'Error', result.error || 'No se pudo guardar el saldo inicial');
+    }
+  })
+  .catch(function(error) {
+    mostrarNotificacion('error', 'Error', 'No se pudo guardar el saldo inicial');
+  });
+}
+
+function abrirModalCorteManual() {
+  var modal = document.createElement('div');
+  modal.id = 'modalCorteManual';
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  modal.innerHTML = 
+    '<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4">' +
+      '<div class="p-6 border-b">' +
+        '<h3 class="text-2xl font-bold text-gray-800 flex items-center gap-3">' +
+          '<i class="fas fa-shield-alt text-red-500"></i>' +
+          'Verificación Requerida' +
+        '</h3>' +
+        '<p class="text-gray-600 mt-2">Ingresa la contraseña del administrador para realizar un corte manual</p>' +
+      '</div>' +
+      '<div class="p-6">' +
+        '<form id="formVerificarAdmin" onsubmit="verificarAdmin(event)">' +
+          '<div class="mb-4">' +
+            '<label class="block text-sm font-medium text-gray-700 mb-2">Contraseña de Administrador</label>' +
+            '<input type="password" id="passwordAdmin" required ' +
+                   'class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" ' +
+                   'placeholder="Ingresa la contraseña" autofocus>' +
+            '<p id="errorPassword" class="text-red-500 text-sm mt-1 hidden"></p>' +
+          '</div>' +
+          '<div class="flex gap-4">' +
+            '<button type="button" onclick="cerrarModalCorteManual()" ' +
+                    'class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition font-medium">' +
+              'Cancelar' +
+            '</button>' +
+            '<button type="submit" ' +
+                    'class="flex-1 bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition font-medium">' +
+              '<i class="fas fa-check mr-2"></i> Verificar' +
+            '</button>' +
+          '</div>' +
+        '</form>' +
+      '</div>' +
+    '</div>';
+  
+  document.body.appendChild(modal);
+  
+  // Cerrar al hacer clic fuera
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) cerrarModalCorteManual();
+  });
+}
+
+function cerrarModalCorteManual() {
+  var modal = document.getElementById('modalCorteManual');
+  if (modal) modal.remove();
+}
+
+function verificarAdmin(event) {
+  event.preventDefault();
+  const password = document.getElementById('passwordAdmin').value;
+  const errorElement = document.getElementById('errorPassword');
+  
+  if (!password) {
+    errorElement.textContent = 'Ingresa la contraseña';
+    errorElement.classList.remove('hidden');
+    return;
+  }
+
+  // Deshabilitar botón mientras se verifica
+  const submitBtn = event.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Verificando...';
+
+  fetch('/pos/verificar-admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: password })
+  })
+  .then(function(response) { return response.json(); })
+  .then(function(result) {
+    if (result.success) {
+      cerrarModalCorteManual();
+      // Redirigir a la vista de corte manual
+      window.location.href = '/pos/corte-manual';
+    } else {
+      errorElement.textContent = result.error || 'Contraseña incorrecta';
+      errorElement.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Verificar';
+    }
+  })
+  .catch(function(error) {
+    errorElement.textContent = 'Error al verificar contraseña';
+    errorElement.classList.remove('hidden');
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Verificar';
+  });
 }
 </script>
 
