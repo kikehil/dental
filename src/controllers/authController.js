@@ -60,6 +60,8 @@ const processLogin = async (req, res) => {
     if ((usuario.rol === 'admin' || usuario.rol === 'recepcionista')) {
       const hoy = moment().tz(config.timezone).startOf('day').toDate();
       const mañana = moment().tz(config.timezone).endOf('day').toDate();
+      const ayer = moment().tz(config.timezone).subtract(1, 'day').startOf('day').toDate();
+      const finAyer = moment().tz(config.timezone).subtract(1, 'day').endOf('day').toDate();
       
       // Verificar si hay saldo inicial hoy
       const saldoInicialHoy = await prisma.corteCaja.findFirst({
@@ -69,7 +71,18 @@ const processLogin = async (req, res) => {
         },
       });
 
-      // Si no hay saldo inicial hoy, redirigir al POS que mostrará el modal
+      // Verificar si ayer hubo algún corte (automático o manual)
+      const corteAyer = await prisma.corteCaja.findFirst({
+        where: {
+          fecha: { gte: ayer, lte: finAyer },
+          hora: { not: null }, // Cualquier corte con hora (automático o manual)
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Si no hay saldo inicial hoy, necesita saldo inicial en estos casos:
+      // 1. Si ayer hubo algún corte (automático o manual) - después de cualquier corte se necesita saldo inicial
+      // 2. Si es el primer día y no hay saldo inicial
       if (!saldoInicialHoy) {
         return res.redirect('/pos?necesitaSaldoInicial=true');
       }

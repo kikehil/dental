@@ -97,9 +97,12 @@ const index = async (req, res) => {
     // Verificar si necesita saldo inicial
     // 1. Si viene del login con el parámetro
     // 2. No hay saldo inicial hoy
-    // 3. El último corte fue el segundo corte del día (fin del día)
+    // 3. Si hay cualquier corte hoy (automático o manual), necesita saldo inicial
+    //    porque después de cualquier corte, al día siguiente se necesita saldo inicial
     const hoy = moment().tz(config.timezone).startOf('day').toDate();
     const mañana = moment().tz(config.timezone).endOf('day').toDate();
+    const ayer = moment().tz(config.timezone).subtract(1, 'day').startOf('day').toDate();
+    const finAyer = moment().tz(config.timezone).subtract(1, 'day').endOf('day').toDate();
     
     const saldoInicialHoy = await prisma.corteCaja.findFirst({
       where: {
@@ -108,10 +111,21 @@ const index = async (req, res) => {
       },
     });
     
+    // Verificar si ayer hubo algún corte (automático o manual)
+    const corteAyer = await prisma.corteCaja.findFirst({
+      where: {
+        fecha: { gte: ayer, lte: finAyer },
+        hora: { not: null }, // Cualquier corte con hora
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    
+    // Necesita saldo inicial si:
+    // - Viene del login con el parámetro
+    // - No hay saldo inicial hoy (después de cualquier corte del día anterior o si es el primer día)
     const necesitaSaldoInicial = 
       req.query.necesitaSaldoInicial === 'true' ||
-      !saldoInicialHoy ||
-      (ultimoCorte && ultimoCorte.hora === configCortes.horaCorte2);
+      !saldoInicialHoy;
     
     // Si necesita corte y hay un corte previo, redirigir a la vista de corte
     if (necesita && ultimoCorte && ultimoCorte.hora !== hora) {
@@ -799,11 +813,11 @@ const procesarCorte = async (req, res) => {
       },
     });
 
-    // Si el corte fue el segundo corte del día (fin del día), 
-    // se necesitará saldo inicial al siguiente inicio de sesión
-    const requiereSaldoInicial = hora === configCortes.horaCorte2;
+    // Después de CUALQUIER corte (automático o manual), 
+    // se necesitará saldo inicial al siguiente inicio de sesión del día siguiente
+    // Esto se maneja automáticamente en la función index del POS
     
-    res.json({ success: true, requiereSaldoInicial });
+    res.json({ success: true, requiereSaldoInicial: true });
   } catch (error) {
     console.error('Error al procesar corte:', error);
     res.status(500).json({ error: 'Error al procesar corte de caja' });
@@ -1023,7 +1037,9 @@ const procesarCorteManual = async (req, res) => {
       },
     });
 
-    res.json({ success: true });
+    // Después de CUALQUIER corte (automático o manual), 
+    // se necesitará saldo inicial al siguiente inicio de sesión del día siguiente
+    res.json({ success: true, requiereSaldoInicial: true });
   } catch (error) {
     console.error('Error al procesar corte manual:', error);
     res.status(500).json({ error: 'Error al procesar corte de caja' });
