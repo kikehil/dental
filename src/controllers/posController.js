@@ -148,6 +148,8 @@ const index = async (req, res) => {
         pacientes,
         formatCurrency,
         necesitaSaldoInicial: true,
+        necesitaCorte: false,
+        horaCorte: null,
         ultimoCorte: null,
       });
     }
